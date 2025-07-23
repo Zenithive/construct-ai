@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Send, Upload, FileText, AlertCircle, CheckSquare, Bell, Settings, User, MapPin, Search, Download, Share2, Clock, Shield, BookOpen, Zap } from 'lucide-react';
+import { Send, MapPin, Search } from 'lucide-react';
 
 // Types
 type Message = {
@@ -10,14 +10,13 @@ type Message = {
   timestamp: Date;
 };
 
-// Chat Component
 const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }) => {
   const [messages, setMessages] = useState([] as Message[]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const [region, setRegion] = useState(selectedRegion);
-    const [category, setCategory] = useState(selectedCategory);
+  const [category, setCategory] = useState(selectedCategory);
 
   const sampleQuestions = [
     "What are the fire safety requirements for high-rise buildings?",
@@ -37,7 +36,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
   const generateMockResponse = (question: string): Message => {
     const responses = {
       "fire": {
-        content: "Based on the National Building Code of India (NBC) 2016, fire safety requirements for high-rise buildings include:\n\n• Fire exits: Minimum 2 fire exits per floor for buildings above 15m\n• Fire detection: Automatic fire detection system mandatory\n• Sprinkler systems: Required for buildings above 30m height\n• Fire lift: Dedicated fire lift for buildings above 60m\n\nKey Regulation: NBC 2016, Part 4, Section 1",
+        content: `Based on the National Building Code of ${regions.find(r => r.value === region)?.label} (NBC) 2016, fire safety requirements for high-rise buildings include:\n\n• Fire exits: Minimum 2 fire exits per floor for buildings above 15m\n• Fire detection: Automatic fire detection system mandatory\n• Sprinkler systems: Required for buildings above 30m height\n• Fire lift: Dedicated fire lift for buildings above 60m\n\nKey Regulation: NBC 2016, Part 4, Section 1`,
         citations: ["NBC 2016, Part 4, Section 1.2.3", "Fire Prevention and Fire Safety Code 2019"],
         confidence: 95
       },
@@ -52,8 +51,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
         confidence: 92
       },
       "default": {
-        content: "I understand you're asking about construction regulations. Based on the current database for " + regions.find(r => r.value === region)?.label
- + ", here are the key points:\n\n• Regulations vary by project type and location\n• Most construction projects require multiple approvals\n• Safety standards are mandatory for all projects\n• Environmental clearances may be required\n\nRecommendation: Please provide more specific details about your project type and location for a more targeted answer.",
+        content: "I understand you're asking about construction regulations. Based on the current database for " + regions.find(r => r.value === region)?.label + ", here are the key points:\n\n• Regulations vary by project type and location\n• Most construction projects require multiple approvals\n• Safety standards are mandatory for all projects\n• Environmental clearances may be required\n\nRecommendation: Please provide more specific details about your project type and location for a more targeted answer.",
         citations: ["General Construction Guidelines"],
         confidence: 75
       }
@@ -89,14 +87,15 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-4 border-b bg-gray-50">
-        <div className="flex items-center space-x-4">
+      {/* Controls Header - Responsive */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border-b bg-gray-50 gap-3 sm:gap-4">
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           <div className="flex items-center space-x-2">
-            <MapPin className="h-5 w-5 text-blue-600" />
+            <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
             <select 
               value={region} 
               onChange={(e) => setRegion(e.target.value)}
-              className="border rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="text-sm border rounded px-2 py-1 sm:px-3 sm:py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 sm:flex-none"
             >
               {regions.map(region => (
                 <option key={region.value} value={region.value}>
@@ -109,7 +108,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
             <select 
               value={category} 
               onChange={(e) => setCategory(e.target.value)}
-              className="border rounded px-3 py-1 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="text-sm border rounded px-2 py-1 sm:px-3 sm:py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 sm:flex-none"
             >
               {categories.map(category => (
                 <option key={category.value} value={category.value}>
@@ -119,20 +118,21 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
             </select>
           </div>
         </div>
-        <div className="text-sm text-gray-500">
+        <div className="text-xs sm:text-sm text-gray-500 text-center sm:text-right">
           {messages.length > 0 ? `${messages.length} messages` : 'Start a conversation'}
         </div>
       </div>
 
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      {/* Messages Area - Responsive */}
+      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
         {messages.length === 0 && (
-          <div className="text-center py-2">
-            <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
-              <Search className="h-8 w-8 text-blue-600" />
+          <div className="text-center py-4 sm:py-8">
+            <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-blue-100 rounded-full mb-3 sm:mb-4">
+              <Search className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
             </div>
-            <h3 className="text-lg font-medium text-gray-900 mb-2">Ask about construction regulations</h3>
-            <p className="text-gray-500 mb-6">Get instant answers with proper citations</p>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-2xl mx-auto">
+            <h3 className="text-lg sm:text-xl font-medium text-gray-900 mb-2">Ask about construction regulations</h3>
+            <p className="text-sm sm:text-base text-gray-500 mb-4 sm:mb-6 px-4">Get instant answers with proper citations</p>
+            <div className="grid grid-cols-1 gap-2 sm:gap-3 max-w-2xl mx-auto px-4">
               {sampleQuestions.map((question, index) => (
                 <button
                   key={index}
@@ -148,17 +148,17 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
 
         {messages.map((message, index) => (
           <div key={index} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-3xl p-4 rounded-lg ${
+            <div className={`max-w-[85%] sm:max-w-3xl p-3 sm:p-4 rounded-lg ${
               message.type === 'user' 
                 ? 'bg-blue-600 text-white' 
                 : 'bg-white border shadow-sm'
             }`}>
-              <div className="whitespace-pre-wrap">{message.content}</div>
+              <div className="whitespace-pre-wrap text-sm sm:text-base">{message.content}</div>
               {message.citations && (
                 <div className="mt-3 pt-3 border-t border-gray-200">
-                  <div className="text-sm text-gray-600 mb-2">Sources:</div>
+                  <div className="text-xs sm:text-sm text-gray-600 mb-2">Sources:</div>
                   {message.citations.map((citation, i) => (
-                    <div key={i} className="text-sm text-blue-600 hover:text-blue-800 cursor-pointer">
+                    <div key={i} className="text-xs sm:text-sm text-blue-600 hover:text-blue-800 cursor-pointer mb-1">
                       📄 {citation}
                     </div>
                   ))}
@@ -176,10 +176,10 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
 
         {isLoading && (
           <div className="flex justify-start">
-            <div className="bg-white border shadow-sm rounded-lg p-4">
+            <div className="bg-white border shadow-sm rounded-lg p-3 sm:p-4">
               <div className="flex items-center space-x-2">
                 <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                <span className="text-gray-500">AI is thinking...</span>
+                <span className="text-sm text-gray-500">AI is thinking...</span>
               </div>
             </div>
           </div>
@@ -187,7 +187,8 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
         <div ref={messagesEndRef} />
       </div>
 
-      <div className="border-t p-4">
+      {/* Input Area - Responsive */}
+      <div className="border-t p-3 sm:p-4">
         <div className="flex space-x-2">
           <input
             type="text"
@@ -195,14 +196,14 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
             placeholder="Ask about construction laws, safety standards, or compliance..."
-            className="flex-1 border rounded-lg px-4 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 border rounded-lg px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
           <button
             onClick={handleSendMessage}
             disabled={!inputMessage.trim() || isLoading}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="bg-blue-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
           >
-            <Send className="h-5 w-5" />
+            <Send className="h-4 w-4 sm:h-5 sm:w-5" />
           </button>
         </div>
       </div>
