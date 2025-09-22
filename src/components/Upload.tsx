@@ -1,8 +1,8 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, FileText, Download } from 'lucide-react';
-import supabase  from '../supaBase/supabaseClient.tsx';
-
+import supabase from '../supaBase/supabaseClient.tsx';
+import axios from "axios";
 type UploadedFile = {
   id: string;
   name: string;
@@ -46,18 +46,18 @@ const UploadComponent = () => {
     }
   };
 
-useEffect(() => {
-  fetchFiles();
-}, []);
+  useEffect(() => {
+    fetchFiles();
+  }, []);
 
-useEffect(() => {
-  if (message) {
-    const timer = setTimeout(() => {
-      setMessage(null);
-    }, 3000);
-    return () => clearTimeout(timer);
-  }
-}, [message]);
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => {
+        setMessage(null);
+      }, 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
@@ -145,6 +145,36 @@ useEffect(() => {
       setError('Failed to download file. Please try again.');
     }
   };
+
+  // fetching 3
+
+ 
+
+// Assume 'file' is a File object, e.g., from input.files[0]
+const file: File = UploadComponent;
+const formData = new FormData();
+formData.append("file", file);
+
+axios.post("http://20.106.19.100:8001/api/v1/documents/upload", formData, {
+  headers: {
+    "Content-Type": "multipart/form-data",
+  },
+})
+  .then((response) => {
+    const data = response.data;
+    if (data.status === "processing") {
+      console.log(`File "${data.filename}" is successfully uploaded!`);
+    } else {
+      console.log("Upload failed or unknown response");
+    }
+  })
+  .catch((error) => {
+    console.error("Upload error:", error);
+  });
+
+
+
+
 
   return (
     <div className="bg-gray-50">

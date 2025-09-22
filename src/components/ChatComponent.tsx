@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, MapPin, Search } from 'lucide-react';
+import axios from 'axios';
 
 // Types
 type Message = {
@@ -17,6 +18,9 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
   const messagesEndRef = useRef(null);
   const [region, setRegion] = useState(selectedRegion);
   const [category, setCategory] = useState(selectedCategory);
+  
+
+  
 
   const sampleQuestions = [
     "What are the fire safety requirements for high-rise buildings?",
@@ -56,11 +60,51 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
         confidence: 75
       }
     };
-  
+// fetching using axios
+    const handleSendMessage = async () => {
+      if (!inputMessage.trim()) return;
+
+      const userMessage: Message = { type: 'user', content: inputMessage, timestamp: new Date() };
+      setMessages(prev => [...prev, userMessage]);
+      setInputMessage('');
+      setIsLoading(true);
+
+      try {
+        // Axios POST request to the API
+        const response = await axios.post("/api/v1/documents/upload", {
+          query: inputMessage,
+          region,   // optional
+          category  // optional
+        });
+
+        const aiMessage: Message = {
+          type: 'ai',
+          content: response.data?.answer || 'No response from API',
+          citations: response.data?.citations || [],
+          confidence: response.data?.confidence || 80,
+          timestamp: new Date()
+        };
+
+        setMessages(prev => [...prev, aiMessage]);
+
+      } catch (err) {
+        console.error('API Error:', err);
+        setMessages(prev => [
+          ...prev,
+          { type: 'ai', content: 'Failed to fetch response from API.', timestamp: new Date() }
+        ]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+//-----------------
+
+
     const key = question.toLowerCase().includes('fire') ? 'fire' :
-                question.toLowerCase().includes('wage') || question.toLowerCase().includes('labor') ? 'wage' :
-                question.toLowerCase().includes('crane') ? 'crane' : 'default';
-  
+      question.toLowerCase().includes('wage') || question.toLowerCase().includes('labor') ? 'wage' :
+        question.toLowerCase().includes('crane') ? 'crane' : 'default';
+
     return {
       type: 'ai' as const,
       content: responses[key].content,
@@ -86,14 +130,15 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
   };
 
   return (
+
     <div className="flex flex-col h-full">
       {/* Controls Header - Responsive */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border-b bg-gray-50 gap-3 sm:gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           <div className="flex items-center space-x-2">
             <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
-            <select 
-              value={region} 
+            <select
+              value={region}
               onChange={(e) => setRegion(e.target.value)}
               className="text-sm border rounded px-2 py-1 sm:px-3 sm:py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 sm:flex-none"
             >
@@ -105,8 +150,8 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
             </select>
           </div>
           <div className="flex items-center space-x-2">
-            <select 
-              value={category} 
+            <select
+              value={category}
               onChange={(e) => setCategory(e.target.value)}
               className="text-sm border rounded px-2 py-1 sm:px-3 sm:py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 sm:flex-none"
             >
@@ -148,11 +193,10 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
 
         {messages.map((message, index) => (
           <div key={index} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] sm:max-w-3xl p-3 sm:p-4 rounded-lg ${
-              message.type === 'user' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-white border shadow-sm'
-            }`}>
+            <div className={`max-w-[85%] sm:max-w-3xl p-3 sm:p-4 rounded-lg ${message.type === 'user'
+              ? 'bg-blue-600 text-white'
+              : 'bg-white border shadow-sm'
+              }`}>
               <div className="whitespace-pre-wrap text-sm sm:text-base">{message.content}</div>
               {message.citations && (
                 <div className="mt-3 pt-3 border-t border-gray-200">

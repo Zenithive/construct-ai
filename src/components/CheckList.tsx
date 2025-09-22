@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
-import { CheckSquare, Download, Share2} from 'lucide-react';
-
+import { CheckSquare, Download, Share2 } from 'lucide-react';
 const ChecklistComponent = () => {
   const [checklistType, setChecklistType] = useState('');
   const [generatedChecklist, setGeneratedChecklist] = useState('');
@@ -15,10 +14,24 @@ const ChecklistComponent = () => {
     };
 
     const key = checklistType.toLowerCase().includes('fire') ? 'fire safety' :
-                checklistType.toLowerCase().includes('structural') ? 'structural' : 'default';
+      checklistType.toLowerCase().includes('structural') ? 'structural' : 'default';
 
     setGeneratedChecklist(checklists[key]);
   };
+
+
+  //api integration 
+
+
+
+
+  
+
+
+
+  
+
+
 
   return (
     <div className="p-4 sm:p-6 bg-gray-50">
