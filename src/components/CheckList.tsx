@@ -1,3 +1,4 @@
+
 import React, { useState, useRef, useEffect } from 'react';
 import { CheckSquare, Download, Share2, MapPin, Scale, Send} from 'lucide-react';
 
@@ -501,6 +502,20 @@ const ChecklistComponent = () => {
 
     return <div className="text-sm sm:text-base max-w-none leading-relaxed" dangerouslySetInnerHTML={{ __html: parsedContent }} />;
   };
+
+
+  //api integration 
+
+
+
+
+  
+
+
+
+  
+
+
 
   return (
     <>
