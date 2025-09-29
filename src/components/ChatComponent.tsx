@@ -25,6 +25,130 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
     "What are the environmental clearance requirements for new construction?"
   ];
 
+  // Utility function to parse PDF citations and create clickable links
+  const parsePDFCitations = (text: string) => {
+    console.log('🔍 Parsing text:', text);
+
+    // Pattern to match: [📄 Source, pp. X-Y](PDF_URL#page=X) format from API response
+    const markdownLinkPattern = /\[([^\]]*📄[^\]]*)\]\((https?:\/\/[^\)]+\.pdf[^\)]*)\)/gi;
+
+    const result = text.replace(markdownLinkPattern, (match, linkText, pdfUrl) => {
+      console.log('🔍 Markdown PDF link match:', { match, linkText, pdfUrl });
+
+      // Extract page number from URL or link text
+      let pageNum = null;
+
+      // First try to get page from URL fragment
+      const urlPageMatch = pdfUrl.match(/#page=(\d+)/);
+      if (urlPageMatch) {
+        pageNum = urlPageMatch[1];
+      } else {
+        // Try to extract page number from link text
+        const textPageMatch = linkText.match(/pp?\.\s*(\d+)/);
+        if (textPageMatch) {
+          pageNum = textPageMatch[1];
+        }
+      }
+
+      // Clean the PDF URL (remove existing page fragment)
+      const cleanUrl = pdfUrl.replace(/#page=\d+/, '');
+
+      // Use PDF.js viewer for reliable page navigation
+      let viewerUrl;
+      if (pageNum) {
+        viewerUrl = `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(cleanUrl)}#page=${pageNum}`;
+        console.log('🔍 PDF.js viewer URL with page:', viewerUrl);
+      } else {
+        viewerUrl = `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(cleanUrl)}`;
+        console.log('🔍 PDF.js viewer URL without page:', viewerUrl);
+      }
+
+      // Create clickable link using PDF.js viewer
+      return `<a href="${viewerUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-medium">${linkText}</a>`;
+    });
+
+    return result;
+  };
+
+  // Function to parse markdown formatting (headers, bold, lists, etc.)
+  const parseMarkdown = (text: string) => {
+    let result = text;
+
+    // Headers with better styling
+    result = result.replace(/^### (.+)$/gm, '<h3 class="text-xl font-bold text-gray-800 mt-6 mb-3 border-b border-gray-200 pb-2">$1</h3>');
+    result = result.replace(/^## (.+)$/gm, '<h2 class="text-2xl font-bold text-gray-900 mt-8 mb-4 border-b-2 border-blue-200 pb-2">$1</h2>');
+    result = result.replace(/^# (.+)$/gm, '<h1 class="text-3xl font-bold text-gray-900 mt-8 mb-6 border-b-2 border-blue-500 pb-3">$1</h1>');
+
+    // Bold text with better contrast
+    result = result.replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-gray-900">$1</strong>');
+
+    // Italic text
+    result = result.replace(/\*([^*]+)\*/g, '<em class="italic text-gray-700">$1</em>');
+
+    // Code blocks (triple backticks)
+    result = result.replace(/```(\w+)?\n([\s\S]*?)\n```/g, '<pre class="bg-gray-100 border border-gray-300 rounded-lg p-4 my-4 overflow-x-auto"><code class="text-sm font-mono text-gray-800">$2</code></pre>');
+
+    // Inline code
+    result = result.replace(/`([^`]+)`/g, '<code class="text-red-600 px-1 text-sm font-mono">$1</code>');
+
+    // Bullet points with better styling
+    result = result.replace(/^- (.+)$/gm, '<li class="flex items-start space-x-2 py-1"><span class="text-blue-500 font-bold mt-1">•</span><span class="flex-1">$1</span></li>');
+
+    // Numbered lists
+    result = result.replace(/^\d+\. (.+)$/gm, '<li class="flex items-start space-x-2 py-1"><span class="text-blue-500 font-bold mt-1 min-w-[1.5rem]">$&</span></li>');
+
+    // Wrap consecutive list items in ul tags with better styling
+    result = result.replace(/(<li[^>]*>.*<\/li>\s*)+/gs, (match) => {
+      return `<ul class="space-y-1 my-4 pl-2 border-l-4 border-blue-200">${match}</ul>`;
+    });
+
+    // Horizontal rules with better styling
+    result = result.replace(/^---$/gm, '<hr class="border-gray-300 my-6 border-t-2">');
+
+    // Blockquotes
+    result = result.replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-blue-500 pl-4 py-2 my-4 italic text-gray-700">$1</blockquote>');
+
+    // Tables (basic support)
+    result = result.replace(/\|(.+)\|/g, (match, content) => {
+      const cells = content.split('|').map(cell => cell.trim());
+      return `<tr>${cells.map(cell => `<td class="border border-gray-300 px-3 py-2">${cell}</td>`).join('')}</tr>`;
+    });
+
+    // Wrap table rows
+    result = result.replace(/(<tr>.*<\/tr>\s*)+/gs, (match) => {
+      return `<table class="w-full border-collapse border border-gray-300 my-4">${match}</table>`;
+    });
+
+    // Line breaks (double space + newline becomes <br>)
+    result = result.replace(/  \n/g, '<br>');
+
+    // Paragraphs (wrap text blocks)
+    result = result.replace(/\n\n+/g, '</p><p class="mb-4">');
+    result = `<p class="mb-4">${result}</p>`;
+
+    // Clean up empty paragraphs
+    result = result.replace(/<p class="mb-4"><\/p>/g, '');
+    result = result.replace(/<p class="mb-4">(<h[1-6]|<hr|<ul|<blockquote|<table)/g, '$1');
+    result = result.replace(/(<\/h[1-6]>|<\/hr>|<\/ul>|<\/blockquote>|<\/table>)<\/p>/g, '$1');
+
+    return result;
+  };
+
+  // Function to render citation content with HTML
+  const renderCitationContent = (citation: string) => {
+    const parsedContent = parsePDFCitations(citation);
+    return <span dangerouslySetInnerHTML={{ __html: parsedContent }} />;
+  };
+
+  // Function to render message content with parsed PDF links and markdown
+  const renderMessageContent = (content: string) => {
+    // First parse PDF citations, then markdown formatting
+    let parsedContent = parsePDFCitations(content);
+    parsedContent = parseMarkdown(parsedContent);
+
+    return <div className="text-sm sm:text-base max-w-none leading-relaxed" dangerouslySetInnerHTML={{ __html: parsedContent }} />;
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
@@ -32,6 +156,11 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    setRegion(selectedRegion);
+    setCategory(selectedCategory);
+  }, [selectedRegion, selectedCategory]);
 
   const generateMockResponse = (question: string): Message => {
     const responses = {
@@ -75,20 +204,140 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
 
     const userMessage: Message = { type: 'user', content: inputMessage, timestamp: new Date() };
     setMessages(prev => [...prev, userMessage]);
+    const query = inputMessage;
     setInputMessage('');
     setIsLoading(true);
 
-    setTimeout(() => {
-      const aiResponse = generateMockResponse(inputMessage);
-      setMessages(prev => [...prev, aiResponse]);
+    try {
+      // Create initial AI message that will be updated with streaming content
+      const aiMessage: Message = {
+        type: 'ai',
+        content: '',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, aiMessage]);
+
+      // Get the country value (use the internal value, not label)
+      const country = region;
+      
+      // Convert category to categories array - if "all" is selected, send empty array or all categories
+      const categoryLabels = category === 'all' 
+        ? [] // Send empty array for "all categories" 
+        : [categories.find(c => c.value === category)?.label || category];
+
+      // Debug logging to verify parameter values
+      console.log('🔍 API Request Parameters:', {
+        query: query,
+        country: country,
+        categories: categoryLabels,
+        region: region,
+        category: category,
+        selectedRegion: selectedRegion,
+        selectedCategory: selectedCategory
+      });
+
+      const requestBody = {
+        query: query,
+        country: country,
+        categories: categoryLabels,
+        top_k: 10,
+        include_sources: true
+      };
+      
+      console.log('🔍 Request body being sent:', JSON.stringify(requestBody, null, 2));
+
+      const response = await fetch('http://20.106.19.100:8001/api/v1/query/stream', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`);
+      }
+
+      const reader = response.body?.getReader();
+      const decoder = new TextDecoder();
+
+      if (!reader) {
+        throw new Error('No response body');
+      }
+
+      let accumulatedContent = '';
+      let previousContent = '';
+      
+      while (true) {
+        const { done, value } = await reader.read();
+        
+        if (done) break;
+        
+        const chunk = decoder.decode(value, { stream: true });
+        
+        // Parse SSE format
+        const lines = chunk.split('\n');
+        for (const line of lines) {
+          if (line.startsWith('data: ') && !line.includes('[DONE]')) {
+            try {
+              const jsonData = JSON.parse(line.substring(6));
+              if (jsonData.type === 'content' && jsonData.data) {
+                const newContent = jsonData.data.content || '';
+                const fullContent = jsonData.data.full_content || '';
+                
+                // Only append new content that wasn't in previous chunk
+                if (fullContent !== previousContent) {
+                  accumulatedContent = fullContent;
+                  previousContent = fullContent;
+                  
+                  // Update the AI message with new content
+                  setMessages(prev => {
+                    const newMessages = [...prev];
+                    const lastMessage = newMessages[newMessages.length - 1];
+                    if (lastMessage && lastMessage.type === 'ai') {
+                      lastMessage.content = accumulatedContent;
+                      // Debug: Log the content to see PDF citation format
+                      console.log('🔍 Message content:', accumulatedContent);
+                    }
+                    return newMessages;
+                  });
+
+                  // Print only new words being streamed
+                  console.log('🔴 Real-time streaming:', newContent);
+                }
+              }
+            } catch (e) {
+              console.log('🔴 Real-time streaming response received');
+            }
+          }
+        }
+      }
+
       setIsLoading(false);
-    }, 2000);
+    } catch (error) {
+      console.error('Error calling streaming API:', error);
+      
+      // Fallback to mock response on error
+      const aiResponse = generateMockResponse(query);
+      setMessages(prev => {
+        const newMessages = [...prev];
+        const lastMessage = newMessages[newMessages.length - 1];
+        if (lastMessage && lastMessage.type === 'ai') {
+          lastMessage.content = aiResponse.content;
+          lastMessage.citations = aiResponse.citations;
+          lastMessage.confidence = aiResponse.confidence;
+        }
+        return newMessages;
+      });
+      setIsLoading(false);
+    }
   };
 
   return (
-    <div className="flex flex-col h-full">
-      {/* Controls Header - Responsive */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border-b bg-gray-50 gap-3 sm:gap-4">
+    <>
+    <div className="flex flex-col h-screen max-h-screen overflow-hidden">
+      {/* Controls Header - Fixed height */}
+      <div className="flex-shrink-0 flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border-b bg-gray-50 gap-3 sm:gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           <div className="flex items-center space-x-2">
             <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
@@ -123,8 +372,9 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
         </div>
       </div>
 
-      {/* Messages Area - Responsive */}
-      <div className="flex-1 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
+
+      {/* Messages Area - Constrained height with scroll */}
+      <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
         {messages.length === 0 && (
           <div className="text-center py-4 sm:py-8">
             <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-blue-100 rounded-full mb-3 sm:mb-4">
@@ -153,13 +403,13 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
                 ? 'bg-blue-600 text-white' 
                 : 'bg-white border shadow-sm'
             }`}>
-              <div className="whitespace-pre-wrap text-sm sm:text-base">{message.content}</div>
+              {message.type === 'ai' ? renderMessageContent(message.content) : <div className="whitespace-pre-wrap text-sm sm:text-base">{message.content}</div>}
               {message.citations && (
                 <div className="mt-3 pt-3 border-t border-gray-200">
                   <div className="text-xs sm:text-sm text-gray-600 mb-2">Sources:</div>
                   {message.citations.map((citation, i) => (
-                    <div key={i} className="text-xs sm:text-sm text-blue-600 hover:text-blue-800 cursor-pointer mb-1">
-                      📄 {citation}
+                    <div key={i} className="text-xs sm:text-sm mb-1">
+                      📄 {renderCitationContent(citation)}
                     </div>
                   ))}
                   <div className="mt-2 text-xs text-gray-500">
@@ -187,8 +437,8 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input Area - Responsive */}
-      <div className="border-t p-3 sm:p-4">
+      {/* Input Area - Fixed at bottom */}
+      <div className="flex-shrink-0 border-t bg-white p-3 sm:p-4">
         <div className="flex space-x-2">
           <input
             type="text"
@@ -208,6 +458,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
         </div>
       </div>
     </div>
+    </>
   );
 };
 
