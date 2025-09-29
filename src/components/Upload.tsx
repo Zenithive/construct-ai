@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, FileText, Download } from 'lucide-react';
+import { Upload, FileText, Download, Loader2 } from 'lucide-react';
 import supabase from '../supaBase/supabaseClient.tsx';
 import axios from "axios";
 type UploadedFile = {
@@ -15,6 +15,7 @@ const UploadComponent = () => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Fetch uploaded files from Supabase Storage for the authenticated user
@@ -68,10 +69,12 @@ const UploadComponent = () => {
 
     setError(null);
     setMessage(null);
+    setIsUploading(true);
 
     const { data: { user }, error: userError } = await supabase.auth.getUser();
     if (userError || !user) {
       setError('You must be logged in to upload files.');
+      setIsUploading(false);
       return;
     }
     const userId = user.id;
@@ -83,6 +86,7 @@ const UploadComponent = () => {
       const f = file as File;
       if (!allowedTypes.includes(f.type)) {
         setError(`Invalid file type for ${f.name}. Please upload PDF, DOC, or DOCX files.`);
+        setIsUploading(false);
         return;
       }
 
@@ -98,7 +102,14 @@ const UploadComponent = () => {
         if (uploadError) {
           console.error('Upload error:', uploadError.message);
           setError(`Failed to upload ${f.name}: ${uploadError.message}`);
+          setIsUploading(false);
           return;
+        }
+
+        // Also send to external API for processing
+        const apiSuccess = await sendFileToAPI(f);
+        if (!apiSuccess) {
+          console.warn(`File ${f.name} uploaded to Supabase but failed to send to external API`);
         }
 
         newFiles.push({
@@ -111,12 +122,14 @@ const UploadComponent = () => {
       } catch (err: any) {
         console.error('Unexpected error:', err);
         setError(`Failed to upload ${f.name}. Please try again.`);
+        setIsUploading(false);
         return;
       }
     }
 
     setUploadedFiles((prev) => [...prev, ...newFiles]);
-    setMessage('Files almighty successfully!');
+    setMessage('Files uploaded successfully!');
+    setIsUploading(false);
     fetchFiles();
   };
 
@@ -146,31 +159,44 @@ const UploadComponent = () => {
     }
   };
 
-  // fetching 3
+  // Send file to external API for processing
+  const sendFileToAPI = async (file: File) => {
+    try {
+      // Verify the file is actually a File object
+      if (!(file instanceof File)) {
+        console.error('Invalid file object:', file);
+        return false;
+      }
 
- 
+      const formData = new FormData();
+      formData.append("file", file, file.name);
 
-// Assume 'file' is a File object, e.g., from input.files[0]
-const file: File = UploadComponent;
-const formData = new FormData();
-formData.append("file", file);
+      console.log('Sending file to API:', {
+        name: file.name,
+        size: file.size,
+        type: file.type,
+        isFile: file instanceof File
+      });
 
-axios.post("http://20.106.19.100:8001/api/v1/documents/upload", formData, {
-  headers: {
-    "Content-Type": "multipart/form-data",
-  },
-})
-  .then((response) => {
-    const data = response.data;
-    if (data.status === "processing") {
-      console.log(`File "${data.filename}" is successfully uploaded!`);
-    } else {
-      console.log("Upload failed or unknown response");
+      // Remove Content-Type header to let browser set it with boundary
+      const response = await axios.post("http://20.106.19.100:8001/api/v1/documents/upload", formData);
+
+      const data = response.data;
+      console.log('API Response:', data);
+
+      if (data.status === "processing") {
+        console.log(`File "${data.filename}" is successfully uploaded to API!`);
+        return true;
+      } else {
+        console.log("API upload failed or unknown response");
+        return false;
+      }
+    } catch (error: any) {
+      console.error("API upload error:", error);
+      console.error("Error details:", error.response?.data);
+      return false;
     }
-  })
-  .catch((error) => {
-    console.error("Upload error:", error);
-  });
+  };
 
 
 
@@ -203,13 +229,20 @@ axios.post("http://20.106.19.100:8001/api/v1/documents/upload", formData, {
               onChange={handleFileUpload}
               multiple
               accept=".pdf,.doc,.docx"
+              disabled={isUploading}
               className="hidden"
             />
             <button
               onClick={() => fileInputRef.current?.click()}
-              className="bg-blue-600 text-white px-4 py-2 sm:px-6 sm:py-3 rounded-lg hover:bg-blue-700 mb-3 sm:mb-4 text-sm sm:text-base font-medium"
+              disabled={isUploading}
+              className={`px-4 py-2 sm:px-6 sm:py-3 rounded-lg mb-3 sm:mb-4 text-sm sm:text-base font-medium inline-flex items-center space-x-2 ${
+                isUploading
+                  ? 'bg-gray-400 cursor-not-allowed'
+                  : 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
+              } text-white`}
             >
-              Choose Files
+              {isUploading && <Loader2 className="h-4 w-4 animate-spin" />}
+              <span>{isUploading ? 'Uploading...' : 'Choose Files'}</span>
             </button>
             <p className="text-gray-500 text-sm sm:text-base">or drag and drop PDF, DOC, DOCX files here</p>
           </div>
