@@ -1,6 +1,8 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, MapPin, Search } from 'lucide-react';
 import axios from 'axios';
+//import { useLocation } from 'react-router-dom';
+import supabase from '../supaBase/supabaseClient';
 
 // Types
 type Message = {
@@ -12,15 +14,13 @@ type Message = {
 };
 
 const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }) => {
+
   const [messages, setMessages] = useState([] as Message[]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const messagesEndRef = useRef(null);
   const [region, setRegion] = useState(selectedRegion);
   const [category, setCategory] = useState(selectedCategory);
-  
-
-  
 
   const sampleQuestions = [
     "What are the fire safety requirements for high-rise buildings?",
@@ -60,7 +60,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
         confidence: 75
       }
     };
-// fetching using axios
+    // fetching using axios
     const handleSendMessage = async () => {
       if (!inputMessage.trim()) return;
 
@@ -98,7 +98,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
       }
     };
 
-//-----------------
+    //-----------------
 
 
     const key = question.toLowerCase().includes('fire') ? 'fire' :
@@ -129,9 +129,16 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
     }, 2000);
   };
 
+  //delete
+
+  //
+
+
   return (
 
     <div className="flex flex-col h-full">
+
+
       {/* Controls Header - Responsive */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border-b bg-gray-50 gap-3 sm:gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
@@ -176,6 +183,18 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
               <Search className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
             </div>
             <h3 className="text-lg sm:text-xl font-medium text-gray-900 mb-2">Ask about construction regulations</h3>
+
+            {/** */}
+
+            {/*<div className="min-h-screen flex items-center justify-center">
+              <h1 className="text-2xl font-bold">
+                Hello {fullName}! Welcome to the Home Page
+              </h1>
+            </div>*/}
+
+
+
+            {/** */}
             <p className="text-sm sm:text-base text-gray-500 mb-4 sm:mb-6 px-4">Get instant answers with proper citations</p>
             <div className="grid grid-cols-1 gap-2 sm:gap-3 max-w-2xl mx-auto px-4">
               {sampleQuestions.map((question, index) => (

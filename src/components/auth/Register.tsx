@@ -7,6 +7,8 @@ import supabase from '../../supaBase/supabaseClient.tsx';
 const Register = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
   const navigate = useNavigate();
@@ -19,21 +21,22 @@ const Register = () => {
     try {
       const { data, error } = await supabase.auth.signUp({
         email,
-        password
+        password,
+        options: {
+          data: { firstName, lastName },
+        },
       });
 
-      if (error) {
-        console.error('Signup error:', error.message);
-        setError(error.message);
-        return;
-      }
+      if (error) throw error;
 
       console.log('Signup successful:', data.user);
-      setMessage('Signup successful! Check your email for confirmation.');
-      setTimeout(() => navigate('/'), 2000); // Redirect to login after 2 seconds
+
+      // ✅ Redirect to login page after signup
+      setMessage('Signup successful! Please check your email to confirm, then login.');
+      setTimeout(() => navigate('/'), 2000); // '/' is login route
     } catch (err: any) {
-      console.error('Unexpected error:', err);
-      setError('An unexpected error occurred. Please try again.');
+      console.error(err.message);
+      setError(err.message || 'An unexpected error occurred. Please try again.');
     }
   };
 
@@ -43,6 +46,7 @@ const Register = () => {
         <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
           Sign Up
         </h2>
+
         {error && (
           <div className="bg-red-100 text-red-700 p-3 rounded-md mb-4 text-sm animate-fade-in">
             {error}
@@ -53,14 +57,22 @@ const Register = () => {
             {message}
           </div>
         )}
+
         <AuthForm
           email={email}
           setEmail={setEmail}
           password={password}
           setPassword={setPassword}
+          firstName={firstName}
+          setFirstName={setFirstName}
+          lastName={lastName}
+          setLastName={setLastName}
           onSubmit={handleSignUp}
           buttonText="Sign Up"
+          showNameFields={true}
+          showCaptcha={true} // captcha visible here
         />
+
         <p className="mt-4 text-center text-sm text-gray-600">
           Already have an account?{' '}
           <Link to="/" className="text-primary underline">

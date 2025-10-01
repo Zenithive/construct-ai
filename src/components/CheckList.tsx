@@ -22,17 +22,6 @@ const ChecklistComponent = () => {
 
   //api integration 
 
-
-
-
-  
-
-
-
-  
-
-
-
   return (
     <div className="p-4 sm:p-6 bg-gray-50">
       <div className="text-center mb-6 sm:mb-8">
