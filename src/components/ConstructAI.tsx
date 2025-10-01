@@ -56,11 +56,16 @@ const ConstructAI = () => {
 
   const categories = [
     { value: 'all', label: 'All Categories' },
-    { value: 'fire-safety', label: 'Fire Safety' },
-    { value: 'labor', label: 'Labor Laws' },
-    { value: 'structural', label: 'Structural Standards' },
-    { value: 'environmental', label: 'Environmental' },
-    { value: 'electrical', label: 'Electrical Safety' }
+     { value: 'building-codes', label: 'Building Codes' },
+    { value: 'safety-regulations', label: 'Safety Regulations' },
+    { value: 'environmental-compliance', label: 'Environmental Compliance' },
+    { value: 'zoning-laws', label: 'Zoning Laws' },
+    { value: 'labor-laws', label: 'Labor Laws' },
+    { value: 'contract-requirements', label: 'Contract Requirements' },
+    { value: 'permit-requirements', label: 'Permit Requirements' },
+    { value: 'quality-standards', label: 'Quality Standards' },
+    { value: 'insurance-requirements', label: 'Insurance Requirements' },
+    { value: 'dispute-resolution', label: 'Dispute Resolution' }
   ];
 
   const tabs = [
