@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import {
   Upload, CheckSquare, Bell, Settings, User, Search, Shield, Zap, Menu, X, LogOut
 } from 'lucide-react';
@@ -15,8 +15,11 @@ const ConstructAI = () => {
   const [selectedRegion, setSelectedRegion] = useState('india');
   const [selectedCategory, setSelectedCategory] = useState('all');
   const [showMobileMenu, setShowMobileMenu] = useState(false);
+  const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [role, setRole] = useState<'admin' | 'user' | null>(null);
   const [fullName, setFullName] = useState('User'); // ✅ persistent fullName
+
+  const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -43,6 +46,22 @@ const ConstructAI = () => {
 
     fetchUserData();
   }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setShowProfileDropdown(false);
+      }
+    };
+
+    if (showProfileDropdown) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showProfileDropdown]);
 
   if (!role) return <p>Loading...</p>;
 
@@ -144,6 +163,44 @@ const ConstructAI = () => {
                   Logout
                 </span>
               </button>
+              <div className="relative" ref={dropdownRef}>
+                <button
+                  onClick={() => setShowProfileDropdown(!showProfileDropdown)}
+                  className="p-2 text-gray-400 hover:text-gray-600 flex items-center"
+                >
+                  <User className="h-5 w-5" />
+                </button>
+
+                {/* Dropdown Menu */}
+                {showProfileDropdown && (
+                  <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                    <div className="py-1">
+                      <button
+                        onClick={async () => {
+                          setShowProfileDropdown(false);
+                          try {
+                            const { error } = await supabase.auth.signOut();
+                            if (error) {
+                              console.error('Logout error:', error.message);
+                              return;
+                            }
+                            navigate('/');
+                          } catch (err: any) {
+                            console.error('Unexpected error during logout:', err);
+                          }
+                        }}
+                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                      >
+                        <LogOut className="h-4 w-4" />
+                        <span>Logout</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+
+
             </div>
 
             {/* Mobile Menu Button */}

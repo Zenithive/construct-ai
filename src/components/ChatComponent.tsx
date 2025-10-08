@@ -521,7 +521,6 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
         </div>
       </div>
     </div>
-    </>
   );
 };
 
