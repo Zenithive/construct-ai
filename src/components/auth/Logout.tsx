@@ -23,6 +23,7 @@ const Logout = () => {
         console.error('Logout error:', err);
         setError('Something went wrong while logging out.');
       }
+      
     };
     signOut();
   }, [navigate]);

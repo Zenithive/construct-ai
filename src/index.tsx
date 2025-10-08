@@ -4,7 +4,7 @@ import App from './App.tsx';
 import './App.css';
 import './index.css'
 
-const rootElement = document.getElementById('root')!; // 👈 non-null assertion
+const rootElement = document.getElementById('root')!;
 const root = ReactDOM.createRoot(rootElement);
 
 root.render(

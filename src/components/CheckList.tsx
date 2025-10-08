@@ -506,17 +506,6 @@ const ChecklistComponent = () => {
 
   //api integration 
 
-
-
-
-  
-
-
-
-  
-
-
-
   return (
     <>
     <div className="flex flex-col h-screen max-h-screen overflow-hidden">

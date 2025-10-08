@@ -118,6 +118,7 @@ const Login = () => {
           setPassword={setPassword}
           onSubmit={handleLogin}
           buttonText="Login"
+          showCaptcha={false} // captcha hidden
         />
         <p className="mt-4 text-center text-sm text-gray-600">
           Forgot your password?{' '}

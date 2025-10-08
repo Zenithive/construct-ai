@@ -7,9 +7,7 @@ import ChatComponent from './ChatComponent.tsx';
 import UpdatesComponent from './Updates.tsx';
 import UploadComponent from './Upload.tsx';
 import ChecklistComponent from './CheckList.tsx';
-//import Logout from './auth/Logout.tsx';
 import supabase from '../supaBase/supabaseClient.tsx';
-
 
 const ConstructAI = () => {
   const navigate = useNavigate();
@@ -19,18 +17,34 @@ const ConstructAI = () => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [role, setRole] = useState<'admin' | 'user' | null>(null);
+  const [fullName, setFullName] = useState('User'); // ✅ persistent fullName
+
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const fetchUserRole = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (data.user?.email === 'admin@gmail.com') {
-        setRole('admin');
-      } else {
-        setRole('user');
+    const fetchUserData = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (error) {
+        console.error("Error fetching user:", error.message);
+        return;
+      }
+
+      const user = data.user;
+      if (user) {
+        // Role check
+        setRole(user.email === 'admin@gmail.com' ? 'admin' : 'user');
+
+        // ✅ Get name from metadata (stored during signup)
+        const meta = user.user_metadata;
+        if (meta?.firstName || meta?.lastName) {
+          setFullName(`${meta.firstName || ''} ${meta.lastName || ''}`.trim());
+        } else {
+          setFullName(user.email || 'User'); // fallback
+        }
       }
     };
-    fetchUserRole();
+
+    fetchUserData();
   }, []);
 
   useEffect(() => {
@@ -50,7 +64,6 @@ const ConstructAI = () => {
   }, [showProfileDropdown]);
 
   if (!role) return <p>Loading...</p>;
-
 
   const regions = [
     { value: 'india', label: 'India', flag: '🇮🇳' },
@@ -89,8 +102,8 @@ const ConstructAI = () => {
         return <UploadComponent />;
       case 'checklist':
         return <ChecklistComponent />;
-      case 'alerts':
-        return <UpdatesComponent />;
+      case 'updates':
+        return <UpdatesComponent selectedRegion={selectedRegion} selectedCategory={selectedCategory} regions={regions} categories={categories} />;
       default:
         return <UpdatesComponent selectedRegion={selectedRegion} selectedCategory={selectedCategory} regions={regions} categories={categories} />;
     }
@@ -103,6 +116,7 @@ const ConstructAI = () => {
       <div className="bg-white border-b shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-14 sm:h-16">
+            
             {/* Logo */}
             <div className="flex items-center space-x-3">
               <div className="bg-blue-600 p-1.5 sm:p-2 rounded-lg">
@@ -118,17 +132,37 @@ const ConstructAI = () => {
             <div className="hidden sm:flex items-center space-x-4">
               <div className="flex items-center space-x-2 text-sm text-gray-600">
                 <Zap className="h-4 w-4 text-yellow-500" />
-                <span>MVP Demo</span>
+                <span>{fullName}</span> {/* ✅ Show persistent fullName */}
               </div>
-              <button className="p-2 text-gray-400 hover:text-gray-600">
-                <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
+              
+              <button className="p-2 text-gray-400 hover:text-gray-600/">
+                <Settings className="h-4 w-4 sm:h-5 sm:w-5"/>
               </button>
-              {/*<button className="p-2 text-gray-400 hover:text-gray-600">
-                <User  className="h-4 w-4 sm:h-5 sm:w-5"/>
-              </button>*/}
 
-
-
+              {/* Logout */}
+              <button
+                onClick={async () => {
+                  try {
+                    const { error } = await supabase.auth.signOut();
+                    if (error) {
+                      console.error('Logout error:', error.message);
+                      return;
+                    }
+                    navigate('/');
+                  } catch (err: any) {
+                    console.error('Unexpected error during logout:', err);
+                  }
+                }}
+                className="relative group p-2 text-gray-400 hover:text-gray-600 flex items-center"
+              >
+                <User className="h-5 w-5" />
+                <span
+                  className="absolute left-full ml-2 px-2 py-1 rounded bg-gray-800 text-white text-xs 
+                  opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap"
+                >
+                  Logout
+                </span>
+              </button>
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setShowProfileDropdown(!showProfileDropdown)}
@@ -201,7 +235,7 @@ const ConstructAI = () => {
 
             {/* Mobile Logout */}
             <button
-              onClick={() => navigate('/logout')}
+              onClick={() => navigate('/')}
               className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left text-gray-700 hover:bg-gray-50"
             >
               <LogOut className="h-5 w-5" />
