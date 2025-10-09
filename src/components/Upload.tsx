@@ -1,7 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, FileText, Download, Loader2 } from 'lucide-react';
-import supabase from '../supaBase/supabaseClient.tsx';
+import supabase from '../supaBase/supabaseClient';
 import axios from "axios";
 type UploadedFile = {
   id: string;

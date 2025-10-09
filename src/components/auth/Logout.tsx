@@ -1,7 +1,7 @@
 // components/auth/Logout.tsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import supabase from '../../supaBase/supabaseClient.tsx';
+import supabase from '../../supaBase/supabaseClient';
 
 const Logout = () => {
   const navigate = useNavigate();

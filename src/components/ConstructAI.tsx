@@ -3,11 +3,11 @@ import {
   Upload, CheckSquare, Bell, Settings, User, Search, Shield, Zap, Menu, X, LogOut
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import ChatComponent from './ChatComponent.tsx';
-import UpdatesComponent from './Updates.tsx';
-import UploadComponent from './Upload.tsx';
-import ChecklistComponent from './CheckList.tsx';
-import supabase from '../supaBase/supabaseClient.tsx';
+import ChatComponent from './ChatComponent';
+import UpdatesComponent from './Updates';
+import UploadComponent from './Upload';
+import ChecklistComponent from './CheckList';
+import supabase from '../supaBase/supabaseClient';
 
 const ConstructAI = () => {
   const navigate = useNavigate();
@@ -132,37 +132,14 @@ const ConstructAI = () => {
             <div className="hidden sm:flex items-center space-x-4">
               <div className="flex items-center space-x-2 text-sm text-gray-600">
                 <Zap className="h-4 w-4 text-yellow-500" />
-                <span>{fullName}</span> {/* ✅ Show persistent fullName */}
+                <span>{fullName}</span>
               </div>
-              
-              <button className="p-2 text-gray-400 hover:text-gray-600/">
+
+              <button className="p-2 text-gray-400 hover:text-gray-600">
                 <Settings className="h-4 w-4 sm:h-5 sm:w-5"/>
               </button>
 
-              {/* Logout */}
-              <button
-                onClick={async () => {
-                  try {
-                    const { error } = await supabase.auth.signOut();
-                    if (error) {
-                      console.error('Logout error:', error.message);
-                      return;
-                    }
-                    navigate('/');
-                  } catch (err: any) {
-                    console.error('Unexpected error during logout:', err);
-                  }
-                }}
-                className="relative group p-2 text-gray-400 hover:text-gray-600 flex items-center"
-              >
-                <User className="h-5 w-5" />
-                <span
-                  className="absolute left-full ml-2 px-2 py-1 rounded bg-gray-800 text-white text-xs 
-                  opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap"
-                >
-                  Logout
-                </span>
-              </button>
+              {/* Profile Dropdown with Logout */}
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setShowProfileDropdown(!showProfileDropdown)}
@@ -198,9 +175,6 @@ const ConstructAI = () => {
                   </div>
                 )}
               </div>
-
-
-
             </div>
 
             {/* Mobile Menu Button */}

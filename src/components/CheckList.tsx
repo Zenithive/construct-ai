@@ -2,6 +2,13 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { CheckSquare, Download, Share2, MapPin, Scale, Send} from 'lucide-react';
 
+// Extend Window interface for custom properties
+declare global {
+  interface Window {
+    handlePdfLinkClick?: (event: any, linkElement: any) => void;
+  }
+}
+
 const ChecklistComponent = () => {
   const [inputMessage, setInputMessage] = useState('');
   const [checklists, setChecklists] = useState([]);
@@ -140,6 +147,8 @@ const ChecklistComponent = () => {
       console.warn('parsePDFCitations received non-string:', text);
       return String(text || '');
     }
+
+    let result = text;
 
     // Enhanced patterns to match different citation formats in resources section
     const patterns = [

@@ -1,7 +1,7 @@
 // components/auth/ResetPassword.tsx
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import supabase  from '../../supaBase/supabaseClient.tsx';
+import supabase  from '../../supaBase/supabaseClient';
 import { Link } from 'react-router-dom';
 
 const ResetPassword = () => {

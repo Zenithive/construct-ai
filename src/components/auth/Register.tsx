@@ -1,8 +1,8 @@
 // pages/RegisterPage.tsx
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import AuthForm from './AuthForm.tsx';
-import supabase from '../../supaBase/supabaseClient.tsx';
+import AuthForm from './AuthForm';
+import supabase from '../../supaBase/supabaseClient';
 
 const Register = () => {
   const [email, setEmail] = useState('');
@@ -31,9 +31,9 @@ const Register = () => {
 
       console.log('Signup successful:', data.user);
 
-      // ✅ Redirect to login page after signup
-      setMessage('Signup successful! Please check your email to confirm, then login.');
-      setTimeout(() => navigate('/'), 2000); // '/' is login route
+      // ✅ Redirect to OTP verification page
+      setMessage('Signup successful! Redirecting to OTP verification...');
+      setTimeout(() => navigate('/verify-otp', { state: { email } }), 1500);
     } catch (err: any) {
       console.error(err.message);
       setError(err.message || 'An unexpected error occurred. Please try again.');

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, AlertCircle, Clock, RefreshCw } from 'lucide-react';
-import supabase from '../supaBase/supabaseClient.tsx';
+import supabase from '../supaBase/supabaseClient';
 
 type Alert = {
   id: string;
@@ -12,7 +12,14 @@ type Alert = {
   summary: string;
 };
 
-const UpdatesComponent = () => {
+interface UpdatesProps {
+  selectedRegion: string;
+  selectedCategory: string;
+  regions: any[];
+  categories: any[];
+}
+
+const UpdatesComponent = ({ selectedRegion, selectedCategory, regions, categories }: UpdatesProps) => {
   const [alerts, setAlerts] = useState<Alert[]>([]);
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(true);
