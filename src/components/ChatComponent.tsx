@@ -1,7 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, MapPin, Search } from 'lucide-react';
-import axios from 'axios';
-//import { useLocation } from 'react-router-dom';
 import supabase from '../supaBase/supabaseClient';
 
 // Types
@@ -285,42 +283,42 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
       }
     };
     // fetching using axios
-    const handleSendMessage = async () => {
-      if (!inputMessage.trim()) return;
+    // const handleSendMessage = async () => {
+    //   if (!inputMessage.trim()) return;
 
-      const userMessage: Message = { type: 'user', content: inputMessage, timestamp: new Date() };
-      setMessages(prev => [...prev, userMessage]);
-      setInputMessage('');
-      setIsLoading(true);
+    //   const userMessage: Message = { type: 'user', content: inputMessage, timestamp: new Date() };
+    //   setMessages(prev => [...prev, userMessage]);
+    //   setInputMessage('');
+    //   setIsLoading(true);
 
-      try {
-        // Axios POST request to the API
-        const response = await axios.post("/api/v1/documents/upload", {
-          query: inputMessage,
-          region,   // optional
-          category  // optional
-        });
+    //   try {
+    //     // Axios POST request to the API
+    //     const response = await axios.post("/api/v1/documents/upload", {
+    //       query: inputMessage,
+    //       region,   // optional
+    //       category  // optional
+    //     });
 
-        const aiMessage: Message = {
-          type: 'ai',
-          content: response.data?.answer || 'No response from API',
-          citations: response.data?.citations || [],
-          confidence: response.data?.confidence || 80,
-          timestamp: new Date()
-        };
+    //     const aiMessage: Message = {
+    //       type: 'ai',
+    //       content: response.data?.answer || 'No response from API',
+    //       citations: response.data?.citations || [],
+    //       confidence: response.data?.confidence || 80,
+    //       timestamp: new Date()
+    //     };
 
-        setMessages(prev => [...prev, aiMessage]);
+    //     setMessages(prev => [...prev, aiMessage]);
 
-      } catch (err) {
-        console.error('API Error:', err);
-        setMessages(prev => [
-          ...prev,
-          { type: 'ai', content: 'Failed to fetch response from API.', timestamp: new Date() }
-        ]);
-      } finally {
-        setIsLoading(false);
-      }
-    };
+    //   } catch (err) {
+    //     console.error('API Error:', err);
+    //     setMessages(prev => [
+    //       ...prev,
+    //       { type: 'ai', content: 'Failed to fetch response from API.', timestamp: new Date() }
+    //     ]);
+    //   } finally {
+    //     setIsLoading(false);
+    //   }
+    // };
 
     //-----------------
 
@@ -408,7 +406,6 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
         throw new Error('No response body');
       }
 
-      let accumulatedContent = '';
       let previousContent = '';
       
       while (true) {
@@ -430,7 +427,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
                 
                 // Only append new content that wasn't in previous chunk
                 if (fullContent !== previousContent) {
-                  accumulatedContent = fullContent;
+                  const currentContent = fullContent;
                   previousContent = fullContent;
                   
                   // Update the AI message with new content
@@ -438,9 +435,9 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
                     const newMessages = [...prev];
                     const lastMessage = newMessages[newMessages.length - 1];
                     if (lastMessage && lastMessage.type === 'ai') {
-                      lastMessage.content = accumulatedContent;
+                      lastMessage.content = currentContent;
                       // Debug: Log the content to see PDF citation format
-                      console.log('🔍 Message content:', accumulatedContent);
+                      console.log('🔍 Message content:', currentContent);
                     }
                     return newMessages;
                   });

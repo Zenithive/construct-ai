@@ -352,28 +352,29 @@ const ChecklistComponent = () => {
         for (const key of possibleKeys) {
           if (data[key]) {
             if (Array.isArray(data[key])) {
-              checklistContent = `# ${query} - ${selectedCountryLabel}\n\n`;
-              if (categoryLabels.length > 0) {
-                checklistContent += `## Selected Categories\n${categoryLabels.join(', ')}\n\n`;
-              }
-              checklistContent += `## Compliance Checklist\n\n`;
-              data[key].forEach(item => {
-                checklistContent += `- [ ] ${item}\n`;
+              let content = `# ${query} - ${selectedCountryLabel}\n\n${
+                categoryLabels.length > 0 ? `## Selected Categories\n${categoryLabels.join(', ')}\n\n` : ''
+              }## Compliance Checklist\n\n`;
+              const items = data[key];
+              items.forEach(item => {
+                content += `- [ ] ${item}\n`;
               });
+              checklistContent = content;
               found = true;
               break;
             } else if (typeof data[key] === 'string') {
-              checklistContent = `# ${query} - ${selectedCountryLabel}\n\n`;
+              let content = `# ${query} - ${selectedCountryLabel}\n\n`;
               if (categoryLabels.length > 0) {
-                checklistContent += `## Selected Categories\n${categoryLabels.join(', ')}\n\n`;
+                content += `## Selected Categories\n${categoryLabels.join(', ')}\n\n`;
               }
-              checklistContent += data[key];
+              content += data[key];
+              checklistContent = content;
               found = true;
               break;
             }
           }
         }
-
+        
         if (!found) {
           checklistContent = `# Generated Checklist - ${selectedCountryLabel}\n\n## Debug Info\n\nAPI Response Format:\n\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\`\n\n## Items\n- [ ] Review API response format\n- [ ] Contact support if issues persist`;
         }
@@ -449,7 +450,6 @@ const ChecklistComponent = () => {
     });
     result = result.replace(/^---$/gm, '<hr class="border-gray-300 my-6 border-t-2">');
     result = result.replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-blue-500 pl-4 py-2 my-4 italic text-gray-700">$1</blockquote>');
-    result = result.replace(/  \n/g, '<br>');
     result = result.replace(/\n\n+/g, '</p><p class="mb-4">');
     result = `<p class="mb-4">${result}</p>`;
     result = result.replace(/<p class="mb-4"><\/p>/g, '');
