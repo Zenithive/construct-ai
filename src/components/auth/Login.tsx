@@ -1,8 +1,8 @@
 // components/auth/Login.tsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import AuthForm from './AuthForm.tsx';
-import supabase  from '../../supaBase/supabaseClient.tsx';
+import AuthForm from './AuthForm';
+import supabase  from '../../supaBase/supabaseClient';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -118,6 +118,7 @@ const Login = () => {
           setPassword={setPassword}
           onSubmit={handleLogin}
           buttonText="Login"
+          showCaptcha={false} // captcha hidden
         />
         <p className="mt-4 text-center text-sm text-gray-600">
           Forgot your password?{' '}

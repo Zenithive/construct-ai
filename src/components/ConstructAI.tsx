@@ -1,15 +1,14 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
-  Upload, CheckSquare, Bell, Settings, User, Search, Shield, Zap, Menu, X, LogOut
+  Upload, CheckSquare, Bell, Settings, User, Search, Shield, Zap, Menu, X, Power,
+  LogOut
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import ChatComponent from './ChatComponent.tsx';
-import UpdatesComponent from './Updates.tsx';
-import UploadComponent from './Upload.tsx';
-import ChecklistComponent from './CheckList.tsx';
-//import Logout from './auth/Logout.tsx';
-import supabase from '../supaBase/supabaseClient.tsx';
-
+import ChatComponent from './ChatComponent';
+import UpdatesComponent from './Updates';
+import UploadComponent from './Upload';
+import ChecklistComponent from './CheckList';
+import supabase from '../supaBase/supabaseClient';
 
 const ConstructAI = () => {
   const navigate = useNavigate();
@@ -19,18 +18,46 @@ const ConstructAI = () => {
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [role, setRole] = useState<'admin' | 'user' | null>(null);
+  const [fullName, setFullName] = useState('User'); // ✅ persistent fullName
+  const [firstName, setFirstName] = useState('User'); // ✅ persistent firstName
+
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const fetchUserRole = async () => {
-      const { data } = await supabase.auth.getUser();
-      if (data.user?.email === 'admin@gmail.com') {
-        setRole('admin');
-      } else {
-        setRole('user');
+    const fetchUserData = async () => {
+      const { data, error } = await supabase.auth.getUser();
+      if (error) {
+        console.error("Error fetching user:", error.message);
+        return;
+      }
+
+      const user = data.user;
+      if (user) {
+        // Role check
+        setRole(user.email === 'admin@gmail.com' ? 'admin' : 'user');
+
+        // ✅ Get name from metadata (stored during signup)
+        const meta = user.user_metadata;
+        console.log('User metadata:', meta);
+        console.log('firstName from meta:', meta?.firstName);
+
+        if (meta?.firstName || meta?.lastName) {
+          const fullNameValue = `${meta.firstName || ''} ${meta.lastName || ''}`.trim();
+          const firstNameValue = meta.firstName || 'User';
+          console.log('Setting fullName to:', fullNameValue);
+          console.log('Setting firstName to:', firstNameValue);
+          setFullName(fullNameValue);
+          setFirstName(firstNameValue);
+        } else {
+          const emailName = user.email?.split('@')[0] || 'User';
+          console.log('No metadata, using email:', emailName);
+          setFullName(user.email || 'User'); // fallback
+          setFirstName(emailName);
+        }
       }
     };
-    fetchUserRole();
+
+    fetchUserData();
   }, []);
 
   useEffect(() => {
@@ -50,7 +77,6 @@ const ConstructAI = () => {
   }, [showProfileDropdown]);
 
   if (!role) return <p>Loading...</p>;
-
 
   const regions = [
     { value: 'india', label: 'India', flag: '🇮🇳' },
@@ -89,58 +115,58 @@ const ConstructAI = () => {
         return <UploadComponent />;
       case 'checklist':
         return <ChecklistComponent />;
-      case 'alerts':
-        return <UpdatesComponent />;
+      case 'updates':
+        return <UpdatesComponent selectedRegion={selectedRegion} selectedCategory={selectedCategory} regions={regions} categories={categories} />;
       default:
         return <UpdatesComponent selectedRegion={selectedRegion} selectedCategory={selectedCategory} regions={regions} categories={categories} />;
     }
   };
 
   return (
-    <div className="bg-gray-50">
+    <div className="bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 min-h-screen">
 
       {/* Header */}
-      <div className="bg-white border-b shadow-sm">
+      <div className="bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-14 sm:h-16">
+          <div className="flex items-center justify-between h-16 sm:h-20">
+
             {/* Logo */}
             <div className="flex items-center space-x-3">
-              <div className="bg-blue-600 p-1.5 sm:p-2 rounded-lg">
-                <Shield className="h-6 w-6 sm:h-8 sm:w-8 text-white" />
+              <div className="bg-gradient-to-br from-blue-600 to-indigo-600 p-2 sm:p-2.5 rounded-xl shadow-lg">
+                <Shield className="h-7 w-7 sm:h-9 sm:w-9 text-white" />
               </div>
               <div>
-                <h1 className="text-lg sm:text-xl font-bold text-gray-900">ConstructAI</h1>
-                <p className="text-xs text-gray-500 hidden sm:block">Your AI compliance co-pilot</p>
+                <h1 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">
+                  ConstructAI
+                </h1>
+                <p className="text-xs text-gray-600 hidden sm:block font-medium">Your AI compliance co-pilot</p>
               </div>
             </div>
 
             {/* Desktop Icons */}
             <div className="hidden sm:flex items-center space-x-4">
-              <div className="flex items-center space-x-2 text-sm text-gray-600">
-                <Zap className="h-4 w-4 text-yellow-500" />
-                <span>MVP Demo</span>
+              <div className="flex items-center space-x-2 px-4 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                <User className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-semibold text-gray-700">{firstName}</span>
               </div>
-              <button className="p-2 text-gray-400 hover:text-gray-600">
-                <Settings className="h-4 w-4 sm:h-5 sm:w-5" />
-              </button>
-              {/*<button className="p-2 text-gray-400 hover:text-gray-600">
-                <User  className="h-4 w-4 sm:h-5 sm:w-5"/>
-              </button>*/}
 
-
-
+              {/* Profile Dropdown with Logout */}
               <div className="relative" ref={dropdownRef}>
                 <button
                   onClick={() => setShowProfileDropdown(!showProfileDropdown)}
-                  className="p-2 text-gray-400 hover:text-gray-600 flex items-center"
+                  className="p-2.5 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all duration-200"
                 >
-                  <User className="h-5 w-5" />
+                  <LogOut className="h-5 w-5" />
                 </button>
 
                 {/* Dropdown Menu */}
                 {showProfileDropdown && (
-                  <div className="absolute right-0 mt-1 w-48 bg-white rounded-md shadow-lg border border-gray-200 z-50">
+                  <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
                     <div className="py-1">
+                      <div className="px-4 py-3 border-b border-gray-100">
+                        <p className="text-xs text-gray-500">Signed in as</p>
+                        <p className="text-sm font-semibold text-gray-900 truncate">{firstName}</p>
+                      </div>
                       <button
                         onClick={async () => {
                           setShowProfileDropdown(false);
@@ -155,26 +181,23 @@ const ConstructAI = () => {
                             console.error('Unexpected error during logout:', err);
                           }
                         }}
-                        className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 flex items-center space-x-2"
+                        className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 transition-colors"
                       >
-                        <LogOut className="h-4 w-4" />
-                        <span>Logout</span>
+                        <Power className="h-4 w-4" />
+                        <span className="font-medium">Logout</span>
                       </button>
                     </div>
                   </div>
                 )}
               </div>
-
-
-
             </div>
 
             {/* Mobile Menu Button */}
             <button
               onClick={() => setShowMobileMenu(!showMobileMenu)}
-              className="sm:hidden p-2 text-gray-400 hover:text-gray-600"
+              className="sm:hidden p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-all"
             >
-              {showMobileMenu ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+              {showMobileMenu ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
             </button>
           </div>
         </div>
@@ -182,16 +205,24 @@ const ConstructAI = () => {
 
       {/* Mobile Menu */}
       {showMobileMenu && (
-        <div className="sm:hidden bg-white border-b shadow-sm">
-          <div className="px-4 py-2 space-y-1">
+        <div className="sm:hidden bg-white/95 backdrop-blur-md border-b shadow-lg animate-in slide-in-from-top">
+          <div className="px-4 py-3 space-y-2">
+            <div className="px-3 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 mb-3">
+              <p className="text-xs text-gray-600">Signed in as</p>
+              <p className="text-sm font-semibold text-gray-900">{firstName}</p>
+            </div>
+
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => { setActiveTab(tab.id); setShowMobileMenu(false); }}
-                  className={`w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left transition-colors ${activeTab === tab.id ? 'bg-blue-50 text-blue-600' : 'text-gray-700 hover:bg-gray-50'
-                    }`}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200 ${
+                    activeTab === tab.id
+                      ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg'
+                      : 'text-gray-700 hover:bg-gray-100'
+                  }`}
                 >
                   <Icon className="h-5 w-5" />
                   <span className="font-medium">{tab.label}</span>
@@ -201,10 +232,21 @@ const ConstructAI = () => {
 
             {/* Mobile Logout */}
             <button
-              onClick={() => navigate('/logout')}
-              className="w-full flex items-center space-x-3 px-3 py-2 rounded-lg text-left text-gray-700 hover:bg-gray-50"
+              onClick={async () => {
+                try {
+                  const { error } = await supabase.auth.signOut();
+                  if (error) {
+                    console.error('Logout error:', error.message);
+                    return;
+                  }
+                  navigate('/');
+                } catch (err: any) {
+                  console.error('Unexpected error during logout:', err);
+                }
+              }}
+              className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left text-red-600 hover:bg-red-50 transition-colors mt-2"
             >
-              <LogOut className="h-5 w-5" />
+              <Power className="h-5 w-5" />
               <span className="font-medium">Logout</span>
             </button>
           </div>
@@ -212,20 +254,26 @@ const ConstructAI = () => {
       )}
 
       {/* Desktop Navigation */}
-      <div className="hidden sm:block bg-white border-b">
+      <div className="hidden sm:block bg-white/70 backdrop-blur-md border-b border-gray-200/50 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <nav className="flex space-x-4 sm:space-x-8">
+          <nav className="flex space-x-2 sm:space-x-4">
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 py-3 sm:py-4 px-1 sm:px-2 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id ? 'border-blue-500 text-blue-600' : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
-                    }`}
+                  className={`flex items-center space-x-2 py-4 px-4 border-b-3 font-semibold text-sm transition-all duration-200 relative group ${
+                    activeTab === tab.id
+                      ? 'border-blue-500 text-blue-600'
+                      : 'border-transparent text-gray-600 hover:text-blue-600 hover:bg-blue-50/50'
+                  }`}
                 >
-                  <Icon className="h-4 w-4 sm:h-5 sm:w-5" />
-                  <span className="hidden sm:inline">{tab.label}</span>
+                  <Icon className={`h-5 w-5 transition-transform ${activeTab === tab.id ? 'scale-110' : 'group-hover:scale-105'}`} />
+                  <span>{tab.label}</span>
+                  {activeTab === tab.id && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-gradient-to-r from-blue-500 to-indigo-500"></div>
+                  )}
                 </button>
               );
             })}
@@ -234,8 +282,10 @@ const ConstructAI = () => {
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto">
-        {renderContent()}
+      <div className="max-w-7xl mx-auto px-0 sm:px-4 lg:px-6 py-4 sm:py-6">
+        <div className="bg-white/60 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 overflow-hidden">
+          {renderContent()}
+        </div>
       </div>
     </div>
   );
