@@ -12,3 +12,45 @@ code {
     monospace;
 }
 
+/* Show scrollbar for chat area with increased size */
+#chat-scroll-area::-webkit-scrollbar {
+  width: 16px;
+  background: #e5e7eb;
+}
+
+#chat-scroll-area::-webkit-scrollbar-track {
+  background: #e5e7eb;
+  border-radius: 8px;
+}
+
+#chat-scroll-area::-webkit-scrollbar-thumb {
+  background: #3b82f6;
+  border-radius: 8px;
+  border: 3px solid #e5e7eb;
+  min-height: 60px;
+}
+
+#chat-scroll-area::-webkit-scrollbar-thumb:hover {
+  background: #2563eb;
+  border: 3px solid #e5e7eb;
+}
+
+#chat-scroll-area::-webkit-scrollbar-thumb:active {
+  background: #1d4ed8;
+}
+
+#chat-scroll-area {
+  scrollbar-width: auto;
+  scrollbar-color: #3b82f6 #e5e7eb;
+}
+
+/* Hide scrollbars everywhere else */
+*:not(#chat-scroll-area) {
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+*:not(#chat-scroll-area)::-webkit-scrollbar {
+  display: none;
+}
+

@@ -12,8 +12,10 @@ const OTPVerification = () => {
   const location = useLocation();
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Get email from location state (passed from registration)
+  // Get email and name data from location state (passed from registration)
   const email = location.state?.email || '';
+  const firstName = location.state?.firstName || '';
+  const lastName = location.state?.lastName || '';
 
   useEffect(() => {
     if (!email) {
@@ -70,6 +72,30 @@ const OTPVerification = () => {
       }
 
       console.log('OTP verification successful:', data);
+
+      // Insert profile data after successful verification
+      if (data.user) {
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: data.user.id,
+            email: data.user.email,
+            firstName: firstName,
+            lastName: lastName,
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          }, {
+            onConflict: 'id'
+          });
+
+        if (profileError) {
+          console.error('Profile creation error:', profileError);
+          // Continue anyway - user is verified
+        } else {
+          console.log('Profile created successfully with firstName:', firstName, 'lastName:', lastName);
+        }
+      }
+
       setMessage('Email verified successfully! Redirecting to dashboard...');
       setTimeout(() => navigate('/dashboard'), 2000);
     } catch (err: any) {

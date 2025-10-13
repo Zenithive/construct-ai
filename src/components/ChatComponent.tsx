@@ -18,9 +18,11 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
   const [messages, setMessages] = useState([] as Message[]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingHistory, setIsLoadingHistory] = useState(true);
   const messagesEndRef = useRef(null);
   const [region, setRegion] = useState(selectedRegion);
   const [category, setCategory] = useState(selectedCategory);
+  const [userId, setUserId] = useState<string | null>(null);
 
   const sampleQuestions = [
     "What are the fire safety requirements for high-rise buildings?",
@@ -153,12 +155,105 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
     return <div className="text-sm sm:text-base max-w-none leading-relaxed" dangerouslySetInnerHTML={{ __html: parsedContent }} />;
   };
 
+  // Function to save a message to Supabase
+  const saveMessageToSupabase = async (message: Message) => {
+    if (!userId) {
+      console.error('No user ID available, cannot save message');
+      return;
+    }
+
+    try {
+      const { error } = await supabase
+        .from('chat_messages')
+        .insert({
+          user_id: userId,
+          message_type: message.type,
+          content: message.content,
+          citations: message.citations || null,
+          confidence: message.confidence || null,
+          region: region,
+          category: category
+        });
+
+      if (error) {
+        console.error('Error saving message to Supabase:', error);
+      } else {
+        console.log('✅ Message saved to Supabase');
+      }
+    } catch (err) {
+      console.error('Unexpected error saving message:', err);
+    }
+  };
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   };
 
+  const scrollToTop = () => {
+    const messagesArea = document.querySelector('.messages-area-chat');
+    if (messagesArea) {
+      messagesArea.scrollTop = 0;
+    }
+  };
+
+  // Load chat history when component mounts
   useEffect(() => {
-    scrollToBottom();
+    const loadChatHistory = async () => {
+      try {
+        setIsLoadingHistory(true);
+
+        // Get current user
+        const { data: { user }, error: userError } = await supabase.auth.getUser();
+
+        if (userError || !user) {
+          console.error('Error fetching user:', userError);
+          setIsLoadingHistory(false);
+          return;
+        }
+
+        setUserId(user.id);
+
+        // Fetch chat history from Supabase
+        const { data, error } = await supabase
+          .from('chat_messages')
+          .select('*')
+          .eq('user_id', user.id)
+          .order('created_at', { ascending: true });
+
+        if (error) {
+          console.error('Error loading chat history:', error);
+          setIsLoadingHistory(false);
+          return;
+        }
+
+        // Transform Supabase data to Message format
+        const loadedMessages: Message[] = (data || []).map((msg) => ({
+          type: msg.message_type as 'user' | 'ai',
+          content: msg.content,
+          citations: msg.citations || undefined,
+          confidence: msg.confidence || undefined,
+          timestamp: new Date(msg.created_at)
+        }));
+
+        setMessages(loadedMessages);
+        console.log('✅ Loaded chat history:', loadedMessages.length, 'messages');
+
+      } catch (err) {
+        console.error('Unexpected error loading chat history:', err);
+      } finally {
+        setIsLoadingHistory(false);
+        scrollToTop();
+      }
+    };
+
+    loadChatHistory();
+  }, []);
+
+  useEffect(() => {
+    // Only scroll to bottom when there are messages
+    if (messages.length > 0) {
+      scrollToBottom();
+    }
   }, [messages]);
 
   useEffect(() => {
@@ -248,6 +343,10 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
 
     const userMessage: Message = { type: 'user', content: inputMessage, timestamp: new Date() };
     setMessages(prev => [...prev, userMessage]);
+
+    // Save user message to Supabase
+    await saveMessageToSupabase(userMessage);
+
     const query = inputMessage;
     setInputMessage('');
     setIsLoading(true);
@@ -357,6 +456,16 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
         }
       }
 
+      // Save the complete AI message to Supabase after streaming is done
+      setMessages(prev => {
+        const lastMessage = prev[prev.length - 1];
+        if (lastMessage && lastMessage.type === 'ai') {
+          // Save the final AI message to Supabase
+          saveMessageToSupabase(lastMessage);
+        }
+        return prev;
+      });
+
       setIsLoading(false);
     } catch (error) {
       console.error('Error calling streaming API:', error);
@@ -370,6 +479,8 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
           lastMessage.content = aiResponse.content;
           lastMessage.citations = aiResponse.citations;
           lastMessage.confidence = aiResponse.confidence;
+          // Save the error/fallback AI message to Supabase
+          saveMessageToSupabase(lastMessage);
         }
         return newMessages;
       });
@@ -383,19 +494,20 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
 
 
   return (
-
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-screen overflow-hidden">
 
 
       {/* Controls Header - Responsive */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 sm:p-4 border-b bg-gray-50 gap-3 sm:gap-4">
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50 gap-3 sm:gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           <div className="flex items-center space-x-2">
-            <MapPin className="h-4 w-4 sm:h-5 sm:w-5 text-blue-600 flex-shrink-0" />
+            <div className="p-2 bg-white rounded-lg shadow-sm">
+              <MapPin className="h-4 w-4 text-blue-600" />
+            </div>
             <select
               value={region}
               onChange={(e) => setRegion(e.target.value)}
-              className="text-sm border rounded px-2 py-1 sm:px-3 sm:py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 sm:flex-none"
+              className="text-sm border-2 border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
             >
               {regions.map(region => (
                 <option key={region.value} value={region.value}>
@@ -405,10 +517,13 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
             </select>
           </div>
           <div className="flex items-center space-x-2">
+            <div className="p-2 bg-white rounded-lg shadow-sm">
+              <Search className="h-4 w-4 text-blue-600" />
+            </div>
             <select
               value={category}
               onChange={(e) => setCategory(e.target.value)}
-              className="text-sm border rounded px-2 py-1 sm:px-3 sm:py-1 focus:outline-none focus:ring-2 focus:ring-blue-500 flex-1 sm:flex-none"
+              className="text-sm border-2 border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
             >
               {categories.map(category => (
                 <option key={category.value} value={category.value}>
@@ -418,105 +533,124 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
             </select>
           </div>
         </div>
-        <div className="text-xs sm:text-sm text-gray-500 text-center sm:text-right">
-          {messages.length > 0 ? `${messages.length} messages` : 'Start a conversation'}
+        <div className="text-xs sm:text-sm font-medium text-gray-700 bg-white px-3 py-2 rounded-lg shadow-sm">
+          {messages.length > 0 ? `💬 ${messages.length} messages` : '👋 Start a conversation'}
         </div>
       </div>
 
 
       {/* Messages Area - Constrained height with scroll */}
-      <div className="flex-1 min-h-0 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
-        {messages.length === 0 && (
-          <div className="text-center py-4 sm:py-8">
-            <div className="inline-flex items-center justify-center w-12 h-12 sm:w-16 sm:h-16 bg-blue-100 rounded-full mb-3 sm:mb-4">
-              <Search className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600" />
+      <div
+        id="chat-scroll-area"
+        className="p-4 sm:p-6 space-y-4 bg-gradient-to-b from-white to-gray-50"
+        style={{
+          flex: '1 1 0',
+          overflowY: 'scroll',
+          overflowX: 'hidden',
+          maxHeight: '100%',
+          minHeight: 0
+        }}
+      >
+        {isLoadingHistory ? (
+          <div className="text-center py-12">
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent mx-auto mb-4"></div>
+            <p className="text-gray-600 font-medium text-lg">Loading chat history...</p>
+          </div>
+        ) : messages.length === 0 ? (
+          <div className="text-center py-8 sm:py-12 max-w-4xl mx-auto">
+            <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-4 shadow-lg">
+              <Search className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
             </div>
-            <h3 className="text-lg sm:text-xl font-medium text-gray-900 mb-2">Ask about construction regulations</h3>
+            <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Ask about construction regulations</h3>
+            <p className="text-base sm:text-lg text-gray-600 mb-8 px-4">Get instant AI-powered answers with proper citations and sources</p>
 
-            {/** */}
-
-            {/*<div className="min-h-screen flex items-center justify-center">
-              <h1 className="text-2xl font-bold">
-                Hello {fullName}! Welcome to the Home Page
-              </h1>
-            </div>*/}
-
-
-
-            {/** */}
-            <p className="text-sm sm:text-base text-gray-500 mb-4 sm:mb-6 px-4">Get instant answers with proper citations</p>
-            <div className="grid grid-cols-1 gap-2 sm:gap-3 max-w-2xl mx-auto px-4">
+            <div className="grid grid-cols-1 gap-3 max-w-2xl mx-auto px-4">
               {sampleQuestions.map((question, index) => (
                 <button
                   key={index}
                   onClick={() => setInputMessage(question)}
-                  className="text-left p-3 border rounded-lg hover:bg-gray-50 transition-colors"
+                  className="group text-left p-4 bg-white border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:shadow-lg transition-all duration-200"
                 >
-                  <div className="text-sm text-gray-700">{question}</div>
+                  <div className="flex items-start space-x-3">
+                    <div className="mt-1 w-6 h-6 rounded-full bg-blue-100 group-hover:bg-blue-500 flex items-center justify-center transition-colors">
+                      <span className="text-xs font-bold text-blue-600 group-hover:text-white">{index + 1}</span>
+                    </div>
+                    <div className="flex-1 text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors">{question}</div>
+                  </div>
                 </button>
               ))}
             </div>
           </div>
-        )}
-
-        {messages.map((message, index) => (
-          <div key={index} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'}`}>
-            <div className={`max-w-[85%] sm:max-w-3xl p-3 sm:p-4 rounded-lg ${
-              message.type === 'user' 
-                ? 'bg-blue-600 text-white' 
-                : 'bg-white border shadow-sm'
-            }`}>
-              {message.type === 'ai' ? renderMessageContent(message.content) : <div className="whitespace-pre-wrap text-sm sm:text-base">{message.content}</div>}
-              {message.citations && (
-                <div className="mt-3 pt-3 border-t border-gray-200">
-                  <div className="text-xs sm:text-sm text-gray-600 mb-2">Sources:</div>
-                  {message.citations.map((citation, i) => (
-                    <div key={i} className="text-xs sm:text-sm mb-1">
-                      📄 {renderCitationContent(citation)}
+        ) : (
+          <>
+            {messages.map((message, index) => (
+              <div key={index} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom`}>
+                <div className={`max-w-[85%] sm:max-w-3xl p-4 sm:p-5 rounded-2xl shadow-md ${
+                  message.type === 'user'
+                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
+                    : 'bg-white border-2 border-gray-100'
+                }`}>
+                  {message.type === 'ai' ? renderMessageContent(message.content) : <div className="whitespace-pre-wrap text-sm sm:text-base font-medium">{message.content}</div>}
+                  {message.citations && (
+                    <div className="mt-4 pt-4 border-t border-gray-200">
+                      <div className="text-xs sm:text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                        <span className="mr-2">📚</span> Sources:
+                      </div>
+                      {message.citations.map((citation, i) => (
+                        <div key={i} className="text-xs sm:text-sm mb-2 pl-4 border-l-2 border-blue-200">
+                          📄 {renderCitationContent(citation)}
+                        </div>
+                      ))}
+                      <div className="mt-3 flex items-center space-x-2">
+                        <div className="flex-1 bg-gray-200 rounded-full h-2">
+                          <div
+                            className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full"
+                            style={{width: `${message.confidence}%`}}
+                          ></div>
+                        </div>
+                        <span className="text-xs font-semibold text-gray-600">{message.confidence}%</span>
+                      </div>
                     </div>
-                  ))}
-                  <div className="mt-2 text-xs text-gray-500">
-                    Confidence: {message.confidence}%
+                  )}
+                  <div className="text-xs opacity-60 mt-3 font-medium">
+                    {message.timestamp.toLocaleTimeString()}
                   </div>
                 </div>
-              )}
-              <div className="text-xs opacity-70 mt-2">
-                {message.timestamp.toLocaleTimeString()}
               </div>
-            </div>
-          </div>
-        ))}
+            ))}
 
-        {isLoading && (
-          <div className="flex justify-start">
-            <div className="bg-white border shadow-sm rounded-lg p-3 sm:p-4">
-              <div className="flex items-center space-x-2">
-                <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-blue-600"></div>
-                <span className="text-sm text-gray-500">AI is thinking...</span>
+            {isLoading && (
+              <div className="flex justify-start animate-pulse">
+                <div className="bg-white border-2 border-gray-100 shadow-md rounded-2xl p-4 sm:p-5">
+                  <div className="flex items-center space-x-3">
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent"></div>
+                    <span className="text-sm font-medium text-gray-600">AI is thinking...</span>
+                  </div>
+                </div>
               </div>
-            </div>
-          </div>
+            )}
+            <div ref={messagesEndRef} />
+          </>
         )}
-        <div ref={messagesEndRef} />
       </div>
 
       {/* Input Area - Fixed at bottom */}
-      <div className="flex-shrink-0 border-t bg-white p-3 sm:p-4">
-        <div className="flex space-x-2">
+      <div className="flex-shrink-0 border-t-2 border-gray-200 bg-white p-4 sm:p-5 shadow-lg">
+        <div className="flex space-x-3 max-w-4xl mx-auto">
           <input
             type="text"
             value={inputMessage}
             onChange={(e) => setInputMessage(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && handleSendMessage()}
             placeholder="Ask about construction laws, safety standards, or compliance..."
-            className="flex-1 border rounded-lg px-3 py-2 sm:px-4 sm:py-2 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="flex-1 border-2 border-gray-300 rounded-xl px-4 py-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
           />
           <button
             onClick={handleSendMessage}
             disabled={!inputMessage.trim() || isLoading}
-            className="bg-blue-600 text-white px-3 py-2 sm:px-4 sm:py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0"
+            className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-5 py-3 rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 shadow-md transition-all duration-200 hover:shadow-lg"
           >
-            <Send className="h-4 w-4 sm:h-5 sm:w-5" />
+            <Send className="h-5 w-5" />
           </button>
         </div>
       </div>

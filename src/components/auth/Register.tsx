@@ -33,7 +33,7 @@ const Register = () => {
 
       // ✅ Redirect to OTP verification page
       setMessage('Signup successful! Redirecting to OTP verification...');
-      setTimeout(() => navigate('/verify-otp', { state: { email } }), 1500);
+      setTimeout(() => navigate('/verify-otp', { state: { email, firstName, lastName } }), 1500);
     } catch (err: any) {
       console.error(err.message);
       setError(err.message || 'An unexpected error occurred. Please try again.');
