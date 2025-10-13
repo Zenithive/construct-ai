@@ -36,7 +36,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
     console.log('🔍 Parsing text:', text);
 
     // Pattern to match: [📄 Source, pp. X-Y](PDF_URL#page=X) format from API response
-    const markdownLinkPattern = /\[([^\]]*📄[^\]]*)\]\((https?:\/\/[^\)]+\.pdf[^\)]*)\)/gi;
+    const markdownLinkPattern = /\[([^\]]*📄[^\]]*)]\((https?:\/\/[^)]+\.pdf[^)]*)\)/gi;
 
     const result = text.replace(markdownLinkPattern, (match, linkText, pdfUrl) => {
       console.log('🔍 Markdown PDF link match:', { match, linkText, pdfUrl });
@@ -126,7 +126,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
     });
 
     // Line breaks (double space + newline becomes <br>)
-    result = result.replace(/  \n/g, '<br>');
+    result = result.replace(/ {2}\n/g, '<br>');
 
     // Paragraphs (wrap text blocks)
     result = result.replace(/\n\n+/g, '</p><p class="mb-4">');

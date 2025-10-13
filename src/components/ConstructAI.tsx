@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
-  Upload, CheckSquare, Bell, Settings, User, Search, Shield, Zap, Menu, X, Power,
+  Upload, CheckSquare, Bell, User, Search, Shield, Menu, X, Power,
   LogOut
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -13,12 +13,12 @@ import supabase from '../supaBase/supabaseClient';
 const ConstructAI = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('chat');
-  const [selectedRegion, setSelectedRegion] = useState('india');
-  const [selectedCategory, setSelectedCategory] = useState('all');
+  const [selectedRegion, ] = useState('india');
+  const [selectedCategory,] = useState('all');
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [role, setRole] = useState<'admin' | 'user' | null>(null);
-  const [fullName, setFullName] = useState('User'); // ✅ persistent fullName
+  const [,setFullName] = useState('User'); // ✅ persistent fullName
   const [firstName, setFirstName] = useState('User'); // ✅ persistent firstName
 
   const dropdownRef = useRef<HTMLDivElement>(null);

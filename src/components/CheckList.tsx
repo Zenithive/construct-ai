@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { CheckSquare, MapPin, Send, Zap, Scale } from 'lucide-react';
+import { CheckSquare, MapPin, Send} from 'lucide-react';
 
 // Extend Window interface for custom properties
 declare global {
@@ -205,11 +205,12 @@ const ChecklistComponent = () => {
     let result = text;
 
     const patterns = [
-      /\[([^\]]*📄[^\]]*)\]\((https?:\/\/[^\)]+\.pdf[^\)]*)\)/gi,
-      /\[([^[\]]*(?:page|p\.)\s*\d+[^[\]]*)\]\((https?:\/\/[^\)]+\.pdf[^\)]*)\)/gi,
-      /\[([^[\]]+)\]\((https?:\/\/[^\)]+\.pdf[^\)]*)\)/gi,
+      /\[([^\]]*📄[^\]]*)]\((https?:\/\/[^)]+\.pdf[^)]*)\)/gi,
+      /\[([^[]*(?:page|p\.)\s*\d+[^[]*)]\((https?:\/\/[^)]+\.pdf[^)]*)\)/gi,
+      /\[([^[]+)]\((https?:\/\/[^)]+\.pdf[^)]*)\)/gi,
       /(https?:\/\/[^\s]+\.pdf(?:#page=\d+)?)/gi
     ];
+
 
     patterns.forEach(pattern => {
       result = result.replace(pattern, (match, linkText, pdfUrl) => {
