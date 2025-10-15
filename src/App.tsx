@@ -11,8 +11,6 @@ import React,{ useEffect } from 'react';
 import  supabase  from './supaBase/supabaseClient';
 import Logout from './components/auth/Logout';
 
-//import Logout from './components/auth/Logout';
-
 const ProtectedRoute = ({ children }: { children: React.ReactNode }): React.ReactElement => {
   const navigate = useNavigate();
 
