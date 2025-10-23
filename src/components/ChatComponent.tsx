@@ -379,8 +379,6 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
 
       const requestBody = {
         query: query,
-        country: country,
-        categories: categoryLabels,
         top_k: 10,
         include_sources: true
       };
@@ -495,7 +493,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
 
 
       {/* Controls Header - Responsive */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50 gap-3 sm:gap-4">
+      {/* <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50 gap-3 sm:gap-4">
         <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
           <div className="flex items-center space-x-2">
             <div className="p-2 bg-white rounded-lg shadow-sm">
@@ -533,7 +531,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
         <div className="text-xs sm:text-sm font-medium text-gray-700 bg-white px-3 py-2 rounded-lg shadow-sm">
           {messages.length > 0 ? `💬 ${messages.length} messages` : '👋 Start a conversation'}
         </div>
-      </div>
+      </div> */}
 
 
       {/* Messages Area - Constrained height with scroll */}
