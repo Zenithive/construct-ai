@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Send, MapPin, Search } from 'lucide-react';
+import { useState, useRef, useEffect } from 'react';
+import { Send, Search } from 'lucide-react';
 import supabase from '../supaBase/supabaseClient';
 
 // Types
