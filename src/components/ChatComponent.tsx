@@ -382,15 +382,19 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
         top_k: 10,
         include_sources: true
       };
-      
-      console.log('🔍 Request body being sent:', JSON.stringify(requestBody, null, 2));
 
-      const response = await fetch('http://20.106.19.100:8001/api/v1/query/stream', {
+      const response = await fetch('https://api.constructionai.chat/api/v1/query/stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestBody)
+      });
+
+      console.log('✅ Response received:', {
+        status: response.status,
+        statusText: response.statusText,
+        headers: Object.fromEntries(response.headers.entries())
       });
 
       if (!response.ok) {
@@ -463,8 +467,10 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
 
       setIsLoading(false);
     } catch (error) {
-      console.error('Error calling streaming API:', error);
-      
+      console.error('❌ Error calling streaming API:', error);
+      console.error('❌ Error type:', error instanceof TypeError ? 'Network/CORS Error' : 'Other Error');
+      console.error('❌ Error message:', error instanceof Error ? error.message : 'Unknown error');
+
       // Fallback to mock response on error
       const aiResponse = generateMockResponse(query);
       setMessages(prev => {

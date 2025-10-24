@@ -295,7 +295,7 @@ const ChecklistComponent = () => {
 
       console.log('🔍 Checklist API Request:', JSON.stringify(requestBody, null, 2));
 
-      const response = await fetch('http://20.106.19.100:8001/api/v1/checklist/generate', {
+      const response = await fetch('https://api.constructionai.chat/api/v1/checklist/generate', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -374,7 +374,7 @@ const ChecklistComponent = () => {
             }
           }
         }
-        
+
         if (!found) {
           checklistContent = `# Generated Checklist - ${selectedCountryLabel}\n\n## Debug Info\n\nAPI Response Format:\n\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\`\n\n## Items\n- [ ] Review API response format\n- [ ] Contact support if issues persist`;
         }

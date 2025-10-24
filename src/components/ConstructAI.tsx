@@ -34,7 +34,7 @@ const ConstructAI = () => {
       const user = data.user;
       if (user) {
         // Role check
-        setRole(user.email === 'admin@gmail.com' ? 'admin' : 'user');
+        setRole(user.email === 'rajvikamani2211@gmail.com' ? 'admin' : 'user');
 
         // ✅ Get name from metadata (stored during signup)
         const meta = user.user_metadata;

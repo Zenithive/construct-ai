@@ -179,7 +179,7 @@ const UploadComponent = () => {
       });
 
       // Remove Content-Type header to let browser set it with boundary
-      const response = await axios.post("http://20.106.19.100:8001/api/v1/documents/upload", formData);
+      const response = await axios.post("https://api.constructionai.chat/api/v1/documents/upload", formData);
 
       const data = response.data;
       console.log('API Response:', data);
