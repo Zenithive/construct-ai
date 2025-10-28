@@ -225,45 +225,15 @@ const ChecklistComponent = () => {
           return match;
         }
 
-        let pageNum = null;
-        const urlPageMatch = pdfUrl.match(/#page=(\d+)/);
-        if (urlPageMatch) {
-          pageNum = parseInt(urlPageMatch[1], 10);
-        }
-
-        let cleanUrl = pdfUrl.replace(/#page=\d+/, '').trim();
-
-        try {
-          cleanUrl = decodeURIComponent(cleanUrl);
-        } catch (e) {
-          console.warn('URL decode failed:', e);
-        }
-
-        const createPdfLink = (url, page) => {
-          const encodedUrl = encodeURIComponent(url);
-          const options = [
-            `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodedUrl}${page ? `#page=${page}` : ''}`,
-            `https://cdn.jsdelivr.net/npm/pdfjs-dist@3.11.174/web/viewer.html?file=${encodedUrl}${page ? `#page=${page}` : ''}`,
-            `https://docs.google.com/viewer?url=${encodedUrl}&embedded=true`,
-            url + (page ? `#page=${page}` : '')
-          ];
-          return options;
-        };
-
-        const pdfViewerUrls = createPdfLink(cleanUrl, pageNum);
-        const linkId = `pdf-link-${Math.random().toString(36).substr(2, 9)}`;
-
+        // Open URL directly without PDF.js viewer wrapper
+        // Works for both PDFs and regular websites
         return `<a
-          id="${linkId}"
-          href="${pdfViewerUrls[0]}"
+          href="${pdfUrl}"
           target="_blank"
           rel="noopener noreferrer"
-          class="text-blue-600 hover:text-blue-800 underline font-medium pdf-citation-link"
-          data-fallback-urls='${JSON.stringify(pdfViewerUrls.slice(1))}'
-          data-page="${pageNum || ''}"
-          onclick="handlePdfLinkClick(event, this)"
-          title="${pageNum ? `Open PDF at page ${pageNum}` : 'Open PDF'}"
-        >${linkText}${pageNum ? ` (Page ${pageNum})` : ''}</a>`;
+          class="text-blue-600 hover:text-blue-800 underline font-medium"
+          title="Open link in new tab"
+        >${linkText}</a>`;
       });
     });
 

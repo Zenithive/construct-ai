@@ -72,8 +72,10 @@ const Login = () => {
       return;
     }
     try {
+      // Use window.location.origin to work in any environment (localhost, production, etc.)
+      const redirectUrl = `${window.location.origin}/reset-password`;
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: 'http://localhost:3000/reset-password',
+        redirectTo: redirectUrl,
       });
       if (error) {
         console.error('Password reset error:', error.message);

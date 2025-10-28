@@ -12,8 +12,8 @@ const supabase = createClient(supabaseUrl, supabaseKey, {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
-    // This might help in some cases
-    flowType: 'implicit'
+    // Use PKCE flow for better security and password reset support
+    flowType: 'pkce'
   }
 });
 

@@ -29,46 +29,20 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
     "What are the environmental clearance requirements for new construction?"
   ];
 
-  // Utility function to parse PDF citations and create clickable links
+  // Utility function to parse all markdown links (PDFs, websites, etc.)
   const parsePDFCitations = (text: string) => {
     console.log('🔍 Parsing text:', text);
 
-    // Pattern to match: [📄 Source, pp. X-Y](PDF_URL#page=X) format from API response
-    const markdownLinkPattern = /\[([^\]]*📄[^\]]*)]\((https?:\/\/[^)]+\.pdf[^)]*)\)/gi;
+    // Pattern to match any markdown link: [Link Text](URL)
+    // This works for PDFs, websites, and all other links
+    const markdownLinkPattern = /\[([^\]]+)]\((https?:\/\/[^)]+)\)/gi;
 
-    const result = text.replace(markdownLinkPattern, (match, linkText, pdfUrl) => {
-      console.log('🔍 Markdown PDF link match:', { match, linkText, pdfUrl });
+    const result = text.replace(markdownLinkPattern, (match, linkText, url) => {
+      console.log('🔍 Markdown link match:', { match, linkText, url });
 
-      // Extract page number from URL or link text
-      let pageNum = null;
-
-      // First try to get page from URL fragment
-      const urlPageMatch = pdfUrl.match(/#page=(\d+)/);
-      if (urlPageMatch) {
-        pageNum = urlPageMatch[1];
-      } else {
-        // Try to extract page number from link text
-        const textPageMatch = linkText.match(/pp?\.\s*(\d+)/);
-        if (textPageMatch) {
-          pageNum = textPageMatch[1];
-        }
-      }
-
-      // Clean the PDF URL (remove existing page fragment)
-      const cleanUrl = pdfUrl.replace(/#page=\d+/, '');
-
-      // Use PDF.js viewer for reliable page navigation
-      let viewerUrl;
-      if (pageNum) {
-        viewerUrl = `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(cleanUrl)}#page=${pageNum}`;
-        console.log('🔍 PDF.js viewer URL with page:', viewerUrl);
-      } else {
-        viewerUrl = `https://mozilla.github.io/pdf.js/web/viewer.html?file=${encodeURIComponent(cleanUrl)}`;
-        console.log('🔍 PDF.js viewer URL without page:', viewerUrl);
-      }
-
-      // Create clickable link using PDF.js viewer
-      return `<a href="${viewerUrl}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-medium">${linkText}</a>`;
+      // Open URL directly without PDF.js viewer wrapper
+      // Works for PDFs, websites, and all link types
+      return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-medium">${linkText}</a>`;
     });
 
     return result;

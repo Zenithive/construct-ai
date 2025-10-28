@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from "react";
+import { Eye, EyeOff } from "lucide-react";
 
 interface AuthFormProps {
   email: string;
@@ -33,6 +34,7 @@ const AuthForm: React.FC<AuthFormProps> = ({
   const [passwordError, setPasswordError] = useState("");
   const [firstNameError, setFirstNameError] = useState("");
   const [lastNameError, setLastNameError] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
 
   const [captcha, setCaptcha] = useState("");
   const [userInput, setUserInput] = useState("");
@@ -155,15 +157,29 @@ const AuthForm: React.FC<AuthFormProps> = ({
       </div>
 
       <div>
-        <input
-          type="password"
-          placeholder="Password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-          className={`w-full px-4 py-2 border rounded-md ${
-            passwordError ? "border-red-500" : ""
-          }`}
-        />
+        <div className="relative">
+          <input
+            type={showPassword ? "text" : "password"}
+            placeholder="Password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+            className={`w-full px-4 py-2 pr-10 border rounded-md ${
+              passwordError ? "border-red-500" : ""
+            }`}
+          />
+          <button
+            type="button"
+            onClick={() => setShowPassword(!showPassword)}
+            className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
+            aria-label={showPassword ? "Hide password" : "Show password"}
+          >
+            {showPassword ? (
+              <EyeOff className="h-5 w-5" />
+            ) : (
+              <Eye className="h-5 w-5" />
+            )}
+          </button>
+        </div>
         {passwordError && (
           <p className="text-red-500 text-sm mt-1">{passwordError}</p>
         )}
