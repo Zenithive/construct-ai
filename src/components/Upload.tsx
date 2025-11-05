@@ -29,7 +29,6 @@ const UploadComponent = () => {
       const userId = user.id;
       const { data, error } = await supabase.storage.from('files').list(`users/${userId}`);
       if (error) {
-        console.error('Error fetching files:', error.message);
         setError(error.message);
         return;
       }
@@ -42,7 +41,6 @@ const UploadComponent = () => {
       }));
       setUploadedFiles(files);
     } catch (err: any) {
-      console.error('Unexpected error:', err);
       setError('Failed to fetch files. Please try again.');
     }
   };
@@ -100,7 +98,6 @@ const UploadComponent = () => {
           });
 
         if (uploadError) {
-          console.error('Upload error:', uploadError.message);
           setError(`Failed to upload ${f.name}: ${uploadError.message}`);
           setIsUploading(false);
           return;
@@ -109,7 +106,6 @@ const UploadComponent = () => {
         // Also send to external API for processing
         const apiSuccess = await sendFileToAPI(f);
         if (!apiSuccess) {
-          console.warn(`File ${f.name} uploaded to Supabase but failed to send to external API`);
         }
 
         newFiles.push({
@@ -120,7 +116,6 @@ const UploadComponent = () => {
           uploadedAt: new Date(),
         });
       } catch (err: any) {
-        console.error('Unexpected error:', err);
         setError(`Failed to upload ${f.name}. Please try again.`);
         setIsUploading(false);
         return;
@@ -140,7 +135,6 @@ const UploadComponent = () => {
         .download(fileName);
 
       if (error) {
-        console.error('Download error:', error.message);
         setError(error.message);
         return;
       }
@@ -154,7 +148,6 @@ const UploadComponent = () => {
       document.body.removeChild(link);
       window.URL.revokeObjectURL(url);
     } catch (err: any) {
-      console.error('Unexpected error:', err);
       setError('Failed to download file. Please try again.');
     }
   };
@@ -164,36 +157,22 @@ const UploadComponent = () => {
     try {
       // Verify the file is actually a File object
       if (!(file instanceof File)) {
-        console.error('Invalid file object:', file);
         return false;
       }
 
       const formData = new FormData();
       formData.append("file", file, file.name);
 
-      console.log('Sending file to API:', {
-        name: file.name,
-        size: file.size,
-        type: file.type,
-        isFile: file instanceof File
-      });
-
-      // Remove Content-Type header to let browser set it with boundary
       const response = await axios.post("https://api.constructionai.chat/api/v1/documents/upload", formData);
 
       const data = response.data;
-      console.log('API Response:', data);
 
       if (data.status === "processing") {
-        console.log(`File "${data.filename}" is successfully uploaded to API!`);
         return true;
       } else {
-        console.log("API upload failed or unknown response");
         return false;
       }
     } catch (error: any) {
-      console.error("API upload error:", error);
-      console.error("Error details:", error.response?.data);
       return false;
     }
   };

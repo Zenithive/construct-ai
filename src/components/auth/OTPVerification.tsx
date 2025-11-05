@@ -24,6 +24,26 @@ const OTPVerification = () => {
     }
   }, [email, navigate]);
 
+  // Auto-dismiss error after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  // Auto-dismiss message after 5 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => {
+        setMessage(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
   const handleOtpChange = (index: number, value: string) => {
     if (value.length > 1) return; // Prevent multiple characters
 
@@ -65,17 +85,14 @@ const OTPVerification = () => {
       });
 
       if (error) {
-        console.error('OTP verification error:', error.message);
         setError(error.message);
         setIsLoading(false);
         return;
       }
 
-      console.log('OTP verification successful:', data);
-
       // Insert profile data after successful verification
       if (data.user) {
-        const { error: profileError } = await supabase
+        await supabase
           .from('profiles')
           .upsert({
             id: data.user.id,
@@ -87,19 +104,11 @@ const OTPVerification = () => {
           }, {
             onConflict: 'id'
           });
-
-        if (profileError) {
-          console.error('Profile creation error:', profileError);
-          // Continue anyway - user is verified
-        } else {
-          console.log('Profile created successfully with firstName:', firstName, 'lastName:', lastName);
-        }
       }
 
       setMessage('Email verified successfully! Redirecting to dashboard...');
       setTimeout(() => navigate('/dashboard'), 2000);
     } catch (err: any) {
-      console.error('Unexpected error:', err);
       setError('An unexpected error occurred. Please try again.');
       setIsLoading(false);
     }
@@ -111,10 +120,7 @@ const OTPVerification = () => {
     setIsResending(true);
 
     try {
-      console.log('📧 Resending OTP for email:', email);
-
-      // Try multiple approaches for local Supabase
-      const { data, error } = await supabase.auth.resend({
+      const { error } = await supabase.auth.resend({
         type: 'signup',
         email: email,
         options: {
@@ -122,27 +128,18 @@ const OTPVerification = () => {
         }
       });
 
-      console.log('📧 Resend response:', { data, error });
-
       if (error) {
-        console.error('❌ Resend OTP error:', error.message);
-        // Check if it's a configuration issue
-        if (error.message.includes('email') || error.message.includes('smtp') || error.message.includes('template')) {
-          setError('Email service not configured in local Supabase. Check Supabase dashboard settings.');
-        } else {
-          setError(`Failed to resend OTP: ${error.message}`);
-        }
+        setError(`Failed to resend OTP: ${error.message}`);
         setIsResending(false);
         return;
       }
 
-      setMessage('✅ OTP resent successfully! Check your email (including spam folder).');
-      setOtp(['', '', '', '', '', '']); // Clear previous OTP
-      inputRefs.current[0]?.focus(); // Focus first input
+      setMessage('OTP resent successfully! Check your email (including spam folder).');
+      setOtp(['', '', '', '', '', '']);
+      inputRefs.current[0]?.focus();
       setIsResending(false);
     } catch (err: any) {
-      console.error('💥 Unexpected error:', err);
-      setError('Failed to resend OTP. Please check your local Supabase email configuration.');
+      setError('Failed to resend OTP. Please try again.');
       setIsResending(false);
     }
   };

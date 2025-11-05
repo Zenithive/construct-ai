@@ -4,7 +4,7 @@ import {
   LogOut
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import ChatComponent from './ChatComponent';
+import ChatWithSidebar from './ChatWithSidebar';
 import UpdatesComponent from './Updates';
 import UploadComponent from './Upload';
 import ChecklistComponent from './CheckList';
@@ -27,7 +27,6 @@ const ConstructAI = () => {
     const fetchUserData = async () => {
       const { data, error } = await supabase.auth.getUser();
       if (error) {
-        console.error("Error fetching user:", error.message);
         return;
       }
 
@@ -38,19 +37,14 @@ const ConstructAI = () => {
 
         // ✅ Get name from metadata (stored during signup)
         const meta = user.user_metadata;
-        console.log('User metadata:', meta);
-        console.log('firstName from meta:', meta?.firstName);
 
         if (meta?.firstName || meta?.lastName) {
           const fullNameValue = `${meta.firstName || ''} ${meta.lastName || ''}`.trim();
           const firstNameValue = meta.firstName || 'User';
-          console.log('Setting fullName to:', fullNameValue);
-          console.log('Setting firstName to:', firstNameValue);
           setFullName(fullNameValue);
           setFirstName(firstNameValue);
         } else {
           const emailName = user.email?.split('@')[0] || 'User';
-          console.log('No metadata, using email:', emailName);
           setFullName(user.email || 'User'); // fallback
           setFirstName(emailName);
         }
@@ -110,7 +104,7 @@ const ConstructAI = () => {
   const renderContent = () => {
     switch (activeTab) {
       case 'chat':
-        return <ChatComponent selectedRegion={selectedRegion} selectedCategory={selectedCategory} regions={regions} categories={categories} />;
+        return <ChatWithSidebar selectedRegion={selectedRegion} selectedCategory={selectedCategory} regions={regions} categories={categories} />;
       case 'upload':
         return <UploadComponent />;
       case 'checklist':
@@ -127,7 +121,7 @@ const ConstructAI = () => {
 
       {/* Header */}
       <div className="bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm sticky top-0 z-40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className=" mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20">
 
             {/* Logo */}
@@ -173,12 +167,10 @@ const ConstructAI = () => {
                           try {
                             const { error } = await supabase.auth.signOut();
                             if (error) {
-                              console.error('Logout error:', error.message);
                               return;
                             }
                             navigate('/');
                           } catch (err: any) {
-                            console.error('Unexpected error during logout:', err);
                           }
                         }}
                         className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 transition-colors"
@@ -236,12 +228,10 @@ const ConstructAI = () => {
                 try {
                   const { error } = await supabase.auth.signOut();
                   if (error) {
-                    console.error('Logout error:', error.message);
                     return;
                   }
                   navigate('/');
                 } catch (err: any) {
-                  console.error('Unexpected error during logout:', err);
                 }
               }}
               className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left text-red-600 hover:bg-red-50 transition-colors mt-2"
@@ -255,7 +245,7 @@ const ConstructAI = () => {
 
       {/* Desktop Navigation */}
       <div className="hidden sm:block bg-white/70 backdrop-blur-md border-b border-gray-200/50 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+        <div className=" mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex space-x-2 sm:space-x-4">
             {tabs.map((tab) => {
               const Icon = tab.icon;
@@ -282,7 +272,7 @@ const ConstructAI = () => {
       </div>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-0 sm:px-4 lg:px-6 py-4 sm:py-6">
+      <div className=" mx-auto px-0 sm:px-4 lg:px-6 py-4 sm:py-6">
         <div className="bg-white/60 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 overflow-hidden">
           {renderContent()}
         </div>

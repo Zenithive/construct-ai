@@ -40,7 +40,6 @@ const UpdatesComponent = ({ selectedRegion, selectedCategory, regions, categorie
       const { data: { user }, error: userError } = await supabase.auth.getUser();
       
       if (userError) {
-        console.error('Auth error:', userError);
         setError('Authentication error. Please log in again.');
         return;
       }
@@ -50,24 +49,8 @@ const UpdatesComponent = ({ selectedRegion, selectedCategory, regions, categorie
         return;
       }
 
-      console.log('Current user ID:', user.id);
-      console.log('Current user:', user);
 
-      // First, let's try to fetch ALL alerts to see what's in the database
-      const { data: allAlerts, error: allAlertsError } = await supabase
-        .from('alerts')
-        .select('*');
-
-      console.log('All alerts in database:', allAlerts);
-      console.log('All alerts error:', allAlertsError);
-
-      // Let's also check what user_ids are in the alerts table
-      if (allAlerts && allAlerts.length > 0) {
-        console.log('User IDs in alerts table:', allAlerts.map(alert => alert.user_id));
-        console.log('Does our user ID match any alerts?', allAlerts.some(alert => alert.user_id === user.id));
-      }
-
-      // Now fetch alerts for the specific user
+      // Fetch alerts for the specific user
       const { data, error: fetchError } = await supabase
         .from('alerts')
         .select('*')
@@ -75,26 +58,12 @@ const UpdatesComponent = ({ selectedRegion, selectedCategory, regions, categorie
         .order('created_at', { ascending: false });
 
       if (fetchError) {
-        console.error('Fetch error:', fetchError);
         setError(`Error fetching alerts: ${fetchError.message}`);
         return;
       }
 
-      console.log('User-specific alerts:', data);
-      console.log('Number of alerts found:', data?.length || 0);
-
-      // Let's also try a test query to see if we can access the table at all
-      const { data: testData, error: testError } = await supabase
-        .from('alerts')
-        .select('id, title, user_id')
-        .limit(5);
-      
-      console.log('Test query (first 5 alerts):', testData);
-      console.log('Test query error:', testError);
-
       // Format the alerts data - handle missing columns gracefully
       const formattedAlerts = (data || []).map((alert) => {
-        console.log('Processing alert:', alert);
         return {
           id: alert.id,
           title: alert.title || 'No title',
@@ -112,11 +81,9 @@ const UpdatesComponent = ({ selectedRegion, selectedCategory, regions, categorie
         };
       });
 
-      console.log('Formatted alerts:', formattedAlerts);
       setAlerts(formattedAlerts);
       
     } catch (err: any) {
-      console.error('Unexpected error:', err);
       setError('Failed to fetch alerts. Please try again.');
     } finally {
       setIsLoading(false);

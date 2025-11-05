@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Search } from 'lucide-react';
+import { Send, Search, ArrowDown } from 'lucide-react';
 import supabase from '../supaBase/supabaseClient';
 
 // Types
@@ -11,7 +11,7 @@ type Message = {
   timestamp: Date;
 };
 
-const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }) => {
+const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, sessionId, onMessageSent }) => {
 
   const [messages, setMessages] = useState([] as Message[]);
   const [inputMessage, setInputMessage] = useState('');
@@ -21,6 +21,8 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
   const [region, setRegion] = useState(selectedRegion);
   const [category, setCategory] = useState(selectedCategory);
   const [userId, setUserId] = useState<string | null>(null);
+  const [isAutoScroll, setIsAutoScroll] = useState(true);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
 
   const sampleQuestions = [
     "What are the fire safety requirements for high-rise buildings?",
@@ -31,18 +33,17 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
 
   // Utility function to parse all markdown links (PDFs, websites, etc.)
   const parsePDFCitations = (text: string) => {
-    console.log('🔍 Parsing text:', text);
 
     // Pattern to match any markdown link: [Link Text](URL)
     // This works for PDFs, websites, and all other links
     const markdownLinkPattern = /\[([^\]]+)]\((https?:\/\/[^)]+)\)/gi;
 
     const result = text.replace(markdownLinkPattern, (match, linkText, url) => {
-      console.log('🔍 Markdown link match:', { match, linkText, url });
 
       // Open URL directly without PDF.js viewer wrapper
       // Works for PDFs, websites, and all link types
-      return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-medium">${linkText}</a>`;
+      // Added break-words and max-width for proper wrapping
+      return `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-medium break-words inline-block max-w-full">${linkText}</a>`;
     });
 
     return result;
@@ -52,10 +53,11 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
   const parseMarkdown = (text: string) => {
     let result = text;
 
-    // Headers with better styling
-    result = result.replace(/^### (.+)$/gm, '<h3 class="text-xl font-bold text-gray-800 mt-6 mb-3 border-b border-gray-200 pb-2">$1</h3>');
-    result = result.replace(/^## (.+)$/gm, '<h2 class="text-2xl font-bold text-gray-900 mt-8 mb-4 border-b-2 border-blue-200 pb-2">$1</h2>');
-    result = result.replace(/^# (.+)$/gm, '<h1 class="text-3xl font-bold text-gray-900 mt-8 mb-6 border-b-2 border-blue-500 pb-3">$1</h1>');
+    // Headers with better styling - handle trailing # symbols properly
+    result = result.replace(/^#### (.+?)(#+)?$/gm, '<h4 class="text-lg font-bold text-gray-800 mt-5 mb-2 border-b border-gray-100 pb-1.5">$1</h4>');
+    result = result.replace(/^### (.+?)(#+)?$/gm, '<h3 class="text-xl font-bold text-gray-800 mt-6 mb-3 border-b border-gray-200 pb-2">$1</h3>');
+    result = result.replace(/^## (.+?)(#+)?$/gm, '<h2 class="text-2xl font-bold text-gray-900 mt-8 mb-4 border-b-2 border-blue-200 pb-2">$1</h2>');
+    result = result.replace(/^# (.+?)(#+)?$/gm, '<h1 class="text-3xl font-bold text-gray-900 mt-8 mb-6 border-b-2 border-blue-500 pb-3">$1</h1>');
 
     // Bold text with better contrast
     result = result.replace(/\*\*(.+?)\*\*/g, '<strong class="font-bold text-gray-900">$1</strong>');
@@ -63,38 +65,93 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
     // Italic text
     result = result.replace(/\*([^*]+)\*/g, '<em class="italic text-gray-700">$1</em>');
 
-    // Code blocks (triple backticks)
-    result = result.replace(/```(\w+)?\n([\s\S]*?)\n```/g, '<pre class="bg-gray-100 border border-gray-300 rounded-lg p-4 my-4 overflow-x-auto"><code class="text-sm font-mono text-gray-800">$2</code></pre>');
+    // Code blocks (triple backticks) - Added better wrapping and scrolling
+    result = result.replace(/```(\w+)?\n([\s\S]*?)\n```/g, '<div class="my-4 overflow-x-auto rounded-lg border border-gray-300"><pre class="bg-gray-100 p-4 text-sm font-mono text-gray-800 whitespace-pre-wrap break-all"><code>$2</code></pre></div>');
 
-    // Inline code
-    result = result.replace(/`([^`]+)`/g, '<code class="text-red-600 px-1 text-sm font-mono">$1</code>');
+    // Inline code - Added word break support
+    result = result.replace(/`([^`]+)`/g, '<code class="text-red-600 bg-red-50 px-1.5 py-0.5 rounded text-sm font-mono break-words">$1</code>');
 
-    // Bullet points with better styling
-    result = result.replace(/^- (.+)$/gm, '<li class="flex items-start space-x-2 py-1"><span class="text-blue-500 font-bold mt-1">•</span><span class="flex-1">$1</span></li>');
+    // Bullet points with better styling and word wrapping
+    result = result.replace(/^- (.+)$/gm, '<li class="flex items-start space-x-2 py-1.5"><span class="text-blue-500 font-bold mt-1 flex-shrink-0">•</span><span class="flex-1 break-words">$1</span></li>');
 
-    // Numbered lists
-    result = result.replace(/^\d+\. (.+)$/gm, '<li class="flex items-start space-x-2 py-1"><span class="text-blue-500 font-bold mt-1 min-w-[1.5rem]">$&</span></li>');
+    // Numbered lists with better word wrapping
+    result = result.replace(/^\d+\. (.+)$/gm, '<li class="flex items-start space-x-2 py-1.5"><span class="text-blue-500 font-bold mt-1 min-w-[1.5rem] flex-shrink-0">$&</span></li>');
 
     // Wrap consecutive list items in ul tags with better styling
     result = result.replace(/(<li[^>]*>.*<\/li>\s*)+/gs, (match) => {
-      return `<ul class="space-y-1 my-4 pl-2 border-l-4 border-blue-200">${match}</ul>`;
+      return `<ul class="space-y-1 my-4 pl-2 border-l-4 border-blue-200 break-words">${match}</ul>`;
     });
 
     // Horizontal rules with better styling
     result = result.replace(/^---$/gm, '<hr class="border-gray-300 my-6 border-t-2">');
 
-    // Blockquotes
-    result = result.replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-blue-500 pl-4 py-2 my-4 italic text-gray-700">$1</blockquote>');
+    // Blockquotes with better word wrapping
+    result = result.replace(/^> (.+)$/gm, '<blockquote class="border-l-4 border-blue-500 pl-4 py-2 my-4 italic text-gray-700 break-words bg-blue-50 rounded-r-lg">$1</blockquote>');
 
-    // Tables (basic support)
-    result = result.replace(/\|(.+)\|/g, (match, content) => {
-      const cells = content.split('|').map(cell => cell.trim());
-      return `<tr>${cells.map(cell => `<td class="border border-gray-300 px-3 py-2">${cell}</td>`).join('')}</tr>`;
+    // Enhanced table parsing with proper header support
+    // Match markdown tables with header, separator, and body rows
+    const tablePattern = /(\|.+\|\n)(\|[\s:-]+\|[\s:-]*\n)((?:\|.+\|\n?)+)/gm;
+
+    result = result.replace(tablePattern, (match, headerRow, separatorRow, bodyRows) => {
+      // Parse header row
+      const headerCells = headerRow.trim().split('|').filter(cell => cell.trim()).map(cell => cell.trim());
+      const headerHtml = `<thead class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+        <tr>${headerCells.map(cell => `<th class="border border-blue-500 px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider">${cell}</th>`).join('')}</tr>
+      </thead>`;
+
+      // Parse body rows - FILTER OUT separator rows (rows with only dashes, colons, spaces, and pipes)
+      const bodyRowsArray = bodyRows.trim().split('\n').filter(row => {
+        const trimmedRow = row.trim();
+        // Skip empty rows or rows that are just separators (only contain |, -, :, spaces)
+        return trimmedRow && !/^\|[\s:-]+\|[\s:-]*$/.test(trimmedRow);
+      });
+
+      const bodyHtml = `<tbody class="bg-white divide-y divide-gray-200">
+        ${bodyRowsArray.map((row, index) => {
+          const cells = row.split('|').filter(cell => cell.trim()).map(cell => cell.trim());
+          const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+          return `<tr class="${bgClass} hover:bg-blue-50 transition-colors">
+            ${cells.map(cell => `<td class="border border-gray-200 px-4 py-3 text-sm text-gray-800 break-words">${cell}</td>`).join('')}
+          </tr>`;
+        }).join('')}
+      </tbody>`;
+
+      return `<div class="my-6 overflow-x-auto rounded-lg shadow-md border border-gray-200">
+        <table class="min-w-full border-collapse">${headerHtml}${bodyHtml}</table>
+      </div>`;
     });
 
-    // Wrap table rows
-    result = result.replace(/(<tr>.*<\/tr>\s*)+/gs, (match) => {
-      return `<table class="w-full border-collapse border border-gray-300 my-4">${match}</table>`;
+    // Fallback: Handle simple tables without proper markdown separator
+    result = result.replace(/(\|.+\|\n){2,}/g, (match) => {
+      const rows = match.trim().split('\n').filter(row => {
+        const trimmedRow = row.trim();
+        // Skip empty rows or rows that are just separators (only contain |, -, :, spaces)
+        return trimmedRow && !/^\|[\s:-]+\|[\s:-]*$/.test(trimmedRow);
+      });
+
+      if (rows.length === 0) return match;
+
+      // First row as header
+      const headerCells = rows[0].split('|').filter(cell => cell.trim()).map(cell => cell.trim());
+      const headerHtml = `<thead class="bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+        <tr>${headerCells.map(cell => `<th class="border border-blue-500 px-4 py-3 text-left font-semibold text-sm uppercase tracking-wider">${cell}</th>`).join('')}</tr>
+      </thead>`;
+
+      // Remaining rows as body (skip separator rows)
+      const bodyHtml = rows.slice(1).map((row, index) => {
+        const cells = row.split('|').filter(cell => cell.trim()).map(cell => cell.trim());
+        const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+        return `<tr class="${bgClass} hover:bg-blue-50 transition-colors">
+          ${cells.map(cell => `<td class="border border-gray-200 px-4 py-3 text-sm text-gray-800 break-words">${cell}</td>`).join('')}
+        </tr>`;
+      }).join('');
+
+      return `<div class="my-6 overflow-x-auto rounded-lg shadow-md border border-gray-200">
+        <table class="min-w-full border-collapse">
+          ${headerHtml}
+          <tbody class="bg-white divide-y divide-gray-200">${bodyHtml}</tbody>
+        </table>
+      </div>`;
     });
 
     // Line breaks (double space + newline becomes <br>)
@@ -124,13 +181,12 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
     let parsedContent = parsePDFCitations(content);
     parsedContent = parseMarkdown(parsedContent);
 
-    return <div className="text-sm sm:text-base max-w-none leading-relaxed" dangerouslySetInnerHTML={{ __html: parsedContent }} />;
+    return <div className="text-sm sm:text-base max-w-none leading-relaxed break-words overflow-wrap-anywhere" dangerouslySetInnerHTML={{ __html: parsedContent }} />;
   };
 
   // Function to save a message to Supabase
   const saveMessageToSupabase = async (message: Message) => {
     if (!userId) {
-      console.error('No user ID available, cannot save message');
       return;
     }
 
@@ -139,6 +195,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
         .from('chat_messages')
         .insert({
           user_id: userId,
+          session_id: sessionId,
           message_type: message.type,
           content: message.content,
           citations: message.citations || null,
@@ -148,12 +205,13 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
         });
 
       if (error) {
-        console.error('Error saving message to Supabase:', error);
       } else {
-        console.log('✅ Message saved to Supabase');
+        // Notify parent that message was sent (to refresh sidebar)
+        if (onMessageSent) {
+          onMessageSent();
+        }
       }
     } catch (err) {
-      console.error('Unexpected error saving message:', err);
     }
   };
 
@@ -168,6 +226,20 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
     }
   };
 
+  // Check if user is at the bottom of the scroll container
+  const isUserAtBottom = () => {
+    if (!scrollContainerRef.current) return true;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    // Consider "at bottom" if within 100px of the bottom
+    return scrollHeight - scrollTop - clientHeight < 100;
+  };
+
+  // Handle scroll event to detect if user scrolls up
+  const handleScroll = () => {
+    const atBottom = isUserAtBottom();
+    setIsAutoScroll(atBottom);
+  };
+
   // Load chat history when component mounts
   useEffect(() => {
     const loadChatHistory = async () => {
@@ -178,22 +250,22 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
         const { data: { user }, error: userError } = await supabase.auth.getUser();
 
         if (userError || !user) {
-          console.error('Error fetching user:', userError);
           setIsLoadingHistory(false);
           return;
         }
 
         setUserId(user.id);
 
-        // Fetch chat history from Supabase
+        // Fetch chat history from Supabase for this session
         const { data, error } = await supabase
           .from('chat_messages')
           .select('*')
           .eq('user_id', user.id)
+          .eq('session_id', sessionId)
           .order('created_at', { ascending: true });
 
         if (error) {
-          console.error('Error loading chat history:', error);
+          setMessages([]);
           setIsLoadingHistory(false);
           return;
         }
@@ -208,10 +280,9 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
         }));
 
         setMessages(loadedMessages);
-        console.log('✅ Loaded chat history:', loadedMessages.length, 'messages');
 
       } catch (err) {
-        console.error('Unexpected error loading chat history:', err);
+        setMessages([]);
       } finally {
         setIsLoadingHistory(false);
         scrollToTop();
@@ -219,14 +290,15 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
     };
 
     loadChatHistory();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
-    // Only scroll to bottom when there are messages
-    if (messages.length > 0) {
+    // Only scroll to bottom when there are messages AND user hasn't scrolled up
+    if (messages.length > 0 && isAutoScroll) {
       scrollToBottom();
     }
-  }, [messages]);
+  }, [messages, isAutoScroll]);
 
   useEffect(() => {
     setRegion(selectedRegion);
@@ -316,6 +388,9 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
     const userMessage: Message = { type: 'user', content: inputMessage, timestamp: new Date() };
     setMessages(prev => [...prev, userMessage]);
 
+    // Re-enable auto-scroll when user sends a message
+    setIsAutoScroll(true);
+
     // Save user message to Supabase
     await saveMessageToSupabase(userMessage);
 
@@ -333,24 +408,6 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
       setMessages(prev => [...prev, aiMessage]);
 
       // Get the country value (use the internal value, not label)
-      const country = region;
-      
-      // Convert category to categories array - if "all" is selected, send empty array or all categories
-      const categoryLabels = category === 'all' 
-        ? [] // Send empty array for "all categories" 
-        : [categories.find(c => c.value === category)?.label || category];
-
-      // Debug logging to verify parameter values
-      console.log('🔍 API Request Parameters:', {
-        query: query,
-        country: country,
-        categories: categoryLabels,
-        region: region,
-        category: category,
-        selectedRegion: selectedRegion,
-        selectedCategory: selectedCategory
-      });
-
       const requestBody = {
         query: query,
         top_k: 10,
@@ -363,12 +420,6 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
           'Content-Type': 'application/json',
         },
         body: JSON.stringify(requestBody)
-      });
-
-      console.log('✅ Response received:', {
-        status: response.status,
-        statusText: response.statusText,
-        headers: Object.fromEntries(response.headers.entries())
       });
 
       if (!response.ok) {
@@ -398,7 +449,6 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
             try {
               const jsonData = JSON.parse(line.substring(6));
               if (jsonData.type === 'content' && jsonData.data) {
-                const newContent = jsonData.data.content || '';
                 const fullContent = jsonData.data.full_content || '';
                 
                 // Only append new content that wasn't in previous chunk
@@ -413,17 +463,14 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
                     if (lastMessage && lastMessage.type === 'ai') {
                       lastMessage.content = currentContent;
                       // Debug: Log the content to see PDF citation format
-                      console.log('🔍 Message content:', currentContent);
                     }
                     return newMessages;
                   });
 
                   // Print only new words being streamed
-                  console.log('🔴 Real-time streaming:', newContent);
                 }
               }
             } catch (e) {
-              console.log('🔴 Real-time streaming response received');
             }
           }
         }
@@ -441,9 +488,6 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
 
       setIsLoading(false);
     } catch (error) {
-      console.error('❌ Error calling streaming API:', error);
-      console.error('❌ Error type:', error instanceof TypeError ? 'Network/CORS Error' : 'Other Error');
-      console.error('❌ Error message:', error instanceof Error ? error.message : 'Unknown error');
 
       // Fallback to mock response on error
       const aiResponse = generateMockResponse(query);
@@ -517,7 +561,9 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
       {/* Messages Area - Constrained height with scroll */}
       <div
         id="chat-scroll-area"
-        className="p-4 sm:p-6 space-y-4 bg-gradient-to-b from-white to-gray-50"
+        ref={scrollContainerRef}
+        onScroll={handleScroll}
+        className="p-4 sm:p-6 space-y-4 bg-gradient-to-b from-white to-gray-50 relative"
         style={{
           flex: '1 1 0',
           overflowY: 'scroll',
@@ -606,6 +652,21 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories }
             )}
             <div ref={messagesEndRef} />
           </>
+        )}
+
+        {/* Scroll to bottom button - appears when user scrolls up */}
+        {!isAutoScroll && messages.length > 0 && (
+          <button
+            onClick={() => {
+              setIsAutoScroll(true);
+              scrollToBottom();
+            }}
+            className="fixed bottom-[110px] right-8 bg-blue-600 hover:bg-blue-700 text-white p-3 rounded-full shadow-lg transition-all duration-200 hover:shadow-xl z-10 flex items-center space-x-2"
+            aria-label="Scroll to bottom"
+          >
+            <ArrowDown className="h-5 w-5" />
+            {/* <span className="text-sm font-medium pr-1">New messages</span> */}
+          </button>
         )}
       </div>
 
