@@ -54,3 +54,41 @@ code {
   display: none;
 }
 
+/* Global text wrapping and overflow handling */
+.overflow-wrap-anywhere {
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  hyphens: auto;
+}
+
+/* Enhanced link styling to prevent overflow */
+a {
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Better table responsiveness */
+table {
+  table-layout: auto;
+  max-width: 100%;
+}
+
+/* Ensure headings don't overflow */
+h1, h2, h3, h4, h5, h6 {
+  overflow-wrap: break-word;
+  word-break: break-word;
+}
+
+/* Better code block handling */
+pre, code {
+  overflow-wrap: break-word;
+  word-break: break-word;
+  white-space: pre-wrap;
+}
+
+/* Smooth transitions for all interactive elements */
+a, button {
+  transition: all 0.2s ease-in-out;
+}
+

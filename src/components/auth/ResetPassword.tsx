@@ -14,34 +14,53 @@ const ResetPassword = () => {
   const location = useLocation();
 
   useEffect(() => {
-    // Check if the URL contains a valid access token for password reset
-    // Supabase sends tokens in the hash fragment (#access_token=...)
-    const hashParams = new URLSearchParams(location.hash.substring(1));
-    const accessToken = hashParams.get('access_token');
-
-    // Also check query params as a fallback (some configurations use query params)
-    const queryParams = new URLSearchParams(location.search);
-    const queryAccessToken = queryParams.get('access_token');
-
-    if (!accessToken && !queryAccessToken) {
-      setError('Invalid or missing reset token. Please request a new password reset link.');
-      return;
-    }
-
-    // Verify the session
+    // Verify that user has a valid password recovery session
+    // With PKCE flow, Supabase processes the token and creates a session automatically
     const verifySession = async () => {
+      // Small delay to allow Supabase to process the token from URL
+      await new Promise(resolve => setTimeout(resolve, 100));
+
       const { data: { session }, error } = await supabase.auth.getSession();
+
       if (error) {
-        console.error('Session verification error:', error);
-        setError('Failed to verify reset token. Please request a new password reset link.');
+        setError('Failed to verify reset session. Please request a new password reset link.');
         return;
       }
+
+      // Only show error if no session exists after giving time for token processing
       if (!session) {
-        setError('No valid session found. Please request a new password reset link.');
+        setError('No active reset session found. Please click the reset link from your email.');
+      } else {
+        // Clean up the URL by removing tokens from hash for security
+        // This prevents the access token from being visible in the URL
+        if (window.location.hash) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
       }
     };
+
     verifySession();
   }, [location]);
+
+  // Auto-dismiss error after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  // Auto-dismiss message after 5 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => {
+        setMessage(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
 
   const handleResetPassword = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,14 +75,12 @@ const ResetPassword = () => {
     try {
       const { error } = await supabase.auth.updateUser({ password: newPassword });
       if (error) {
-        console.error('Password update error:', error.message);
         setError(error.message);
         return;
       }
       setMessage('Password updated successfully! You can now log in with your new password.');
       setTimeout(() => navigate('/'), 2000); // Redirect to login after 2 seconds
     } catch (err: any) {
-      console.error('Unexpected error:', err);
       setError('An unexpected error occurred. Please try again.');
     }
   };

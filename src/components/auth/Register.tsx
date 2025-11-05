@@ -1,5 +1,5 @@
 // pages/RegisterPage.tsx
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthForm from './AuthForm';
 import supabase from '../../supaBase/supabaseClient';
@@ -13,13 +13,33 @@ const Register = () => {
   const [message, setMessage] = useState<string | null>(null);
   const navigate = useNavigate();
 
+  // Auto-dismiss error after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  // Auto-dismiss message after 5 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => {
+        setMessage(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
   const handleSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setMessage(null);
 
     try {
-      const { data, error } = await supabase.auth.signUp({
+      const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
@@ -29,13 +49,9 @@ const Register = () => {
 
       if (error) throw error;
 
-      console.log('Signup successful:', data.user);
-
-      // ✅ Redirect to OTP verification page
       setMessage('Signup successful! Redirecting to OTP verification...');
       setTimeout(() => navigate('/verify-otp', { state: { email, firstName, lastName } }), 1500);
     } catch (err: any) {
-      console.error(err.message);
       setError(err.message || 'An unexpected error occurred. Please try again.');
     }
   };

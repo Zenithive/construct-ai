@@ -124,7 +124,6 @@ const ChecklistComponent = () => {
       const primaryUrl = linkElement.href;
       const page = linkElement.dataset.page;
 
-      console.log('🔍 Attempting to open PDF:', { primaryUrl, fallbackUrls, page });
 
       // Show loading indicator
       const originalText = linkElement.textContent;
@@ -136,7 +135,6 @@ const ChecklistComponent = () => {
         const newWindow = window.open(url, '_blank', 'noopener,noreferrer');
 
         if (!newWindow) {
-          console.warn(`Failed to open PDF viewer ${index + 1}, trying next fallback...`);
 
           // Try next fallback URL
           if (index < fallbackUrls.length) {
@@ -160,7 +158,6 @@ const ChecklistComponent = () => {
         setTimeout(() => {
           try {
             if (newWindow.closed) {
-              console.warn(`PDF viewer ${index + 1} was blocked or closed, trying fallback...`);
               if (index < fallbackUrls.length) {
                 openPdf(fallbackUrls[index], index + 1);
               } else {
@@ -169,7 +166,6 @@ const ChecklistComponent = () => {
                 linkElement.style.opacity = '1';
               }
             } else {
-              console.log(`✅ PDF viewer ${index + 1} opened successfully${page ? ` at page ${page}` : ''}`);
               // Reset link appearance on success
               setTimeout(() => {
                 linkElement.textContent = originalText;
@@ -177,7 +173,6 @@ const ChecklistComponent = () => {
               }, 1000);
             }
           } catch (e) {
-            console.warn('Could not check window status:', e);
             // Reset link appearance
             setTimeout(() => {
               linkElement.textContent = originalText;
@@ -263,7 +258,6 @@ const ChecklistComponent = () => {
         categories: categoryLabels
       };
 
-      console.log('🔍 Checklist API Request:', JSON.stringify(requestBody, null, 2));
 
       const response = await fetch('https://api.constructionai.chat/api/v1/checklist/generate', {
         method: 'POST',
@@ -278,7 +272,6 @@ const ChecklistComponent = () => {
       }
 
       const data = await response.json();
-      console.log('🔍 Checklist API Response:', data);
 
       let checklistContent = '';
       const selectedCountryLabel = countries.find(c => c.value === selectedCountry)?.label || 'Selected Region';
@@ -377,7 +370,6 @@ const ChecklistComponent = () => {
       setIsLoading(false);
 
     } catch (error) {
-      console.error('Error calling checklist API:', error);
       const errorResponse = {
         type: 'ai',
         content: `# Error Generating Checklist\n\n## Issue\nUnable to connect to checklist generation service.\n\n## Fallback Items\n- [ ] Check network connectivity\n- [ ] Verify API endpoint availability\n- [ ] Contact support for assistance\n- [ ] Try again in a few moments\n\n*Error: ${error.message}*`,

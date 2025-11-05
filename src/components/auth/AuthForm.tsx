@@ -193,7 +193,10 @@ const AuthForm: React.FC<AuthFormProps> = ({
               type="text"
               value={captcha}
               readOnly
-              className="flex-1 px-4 py-2 border bg-gray-200 font-bold text-center tracking-widest rounded"
+              onCopy={(e) => e.preventDefault()}
+              onCut={(e) => e.preventDefault()}
+              onContextMenu={(e) => e.preventDefault()}
+              className="flex-1 px-4 py-2 border bg-gray-200 font-bold text-center tracking-widest rounded select-none cursor-not-allowed"
             />
             <button
               type="button"
@@ -209,6 +212,10 @@ const AuthForm: React.FC<AuthFormProps> = ({
             placeholder="Enter Captcha"
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
+            onCopy={(e) => e.preventDefault()}
+            onPaste={(e) => e.preventDefault()}
+            onCut={(e) => e.preventDefault()}
+            autoComplete="off"
             className={`w-full px-4 py-2 border rounded-md ${
               captchaError ? "border-red-500" : ""
             }`}

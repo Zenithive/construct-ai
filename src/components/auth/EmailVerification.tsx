@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Mail, ArrowLeft } from 'lucide-react';
 import supabase from '../../supaBase/supabaseClient';
@@ -12,6 +12,26 @@ const EmailVerification = () => {
 
   // Get email from location state (passed from registration)
   const email = location.state?.email || '';
+
+  // Auto-dismiss error after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  // Auto-dismiss message after 5 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => {
+        setMessage(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
 
   const handleResendEmail = async () => {
     if (!email) {
@@ -33,13 +53,11 @@ const EmailVerification = () => {
       });
 
       if (error) {
-        console.error('Resend email error:', error.message);
         setError(error.message);
       } else {
         setMessage('Verification email sent! Please check your inbox and spam folder.');
       }
     } catch (err: any) {
-      console.error('Unexpected error:', err);
       setError('Failed to resend email. Please try again.');
     } finally {
       setIsResending(false);

@@ -20,7 +20,6 @@ const Logout = () => {
         // Redirect to login after a short delay
         setTimeout(() => navigate('/login'), 1000);
       } catch (err: any) {
-        console.error('Logout error:', err);
         setError('Something went wrong while logging out.');
       }
       

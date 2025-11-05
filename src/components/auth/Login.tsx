@@ -21,16 +21,35 @@ const Login = () => {
     checkSession();
   }, [navigate]);
 
+  // Auto-dismiss error after 5 seconds
+  useEffect(() => {
+    if (error) {
+      const timer = setTimeout(() => {
+        setError(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [error]);
+
+  // Auto-dismiss message after 5 seconds
+  useEffect(() => {
+    if (message) {
+      const timer = setTimeout(() => {
+        setMessage(null);
+      }, 5000);
+      return () => clearTimeout(timer);
+    }
+  }, [message]);
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setMessage(null);
 
     try {
-      const { data, error } = await supabase.auth.signInWithPassword({ email, password });
+      const { error } = await supabase.auth.signInWithPassword({ email, password });
 
       if (error) {
-        console.error('Login error:', error.message);
         if (error.message === 'Email not confirmed') {
           setError('Please confirm your email address to log in. Check your inbox or spam folder.');
         } else {
@@ -39,11 +58,9 @@ const Login = () => {
         return;
       }
 
-      console.log('Login successful:', data.user);
       setMessage('Login successful!');
       navigate('/dashboard');
     } catch (err: any) {
-      console.error('Unexpected error:', err);
       setError('An unexpected error occurred. Please try again.');
     }
   };
@@ -55,13 +72,11 @@ const Login = () => {
         email,
       });
       if (error) {
-        console.error('Resend confirmation error:', error.message);
         setError(error.message);
         return;
       }
       setMessage('Confirmation email resent! Check your inbox or spam folder.');
     } catch (err: any) {
-      console.error('Unexpected error:', err);
       setError('Failed to resend confirmation email. Please try again.');
     }
   };
@@ -72,19 +87,16 @@ const Login = () => {
       return;
     }
     try {
-      // Use window.location.origin to work in any environment (localhost, production, etc.)
       const redirectUrl = `${window.location.origin}/reset-password`;
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
         redirectTo: redirectUrl,
       });
       if (error) {
-        console.error('Password reset error:', error.message);
         setError(error.message);
         return;
       }
       setMessage('Password reset email sent! Check your inbox or spam folder.');
     } catch (err: any) {
-      console.error('Unexpected error:', err);
       setError('Failed to send password reset email. Please try again.');
     }
   };
