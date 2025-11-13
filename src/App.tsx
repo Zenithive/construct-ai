@@ -10,8 +10,9 @@ import OTPVerification from './components/auth/OTPVerification';
 import React,{ useEffect } from 'react';
 import  supabase  from './supaBase/supabaseClient';
 import Logout from './components/auth/Logout';
+import ChatComponent from './components/ChatComponent';
 
-//import Logout from './components/auth/Logout';
+
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }): React.ReactElement => {
   const navigate = useNavigate();
@@ -37,6 +38,9 @@ const AppRoutes = () => {
     { path: '/verify-otp', element: <OTPVerification /> },
     { path: '/dashboard', element: <ProtectedRoute><ConstructAI /></ProtectedRoute> },
     { path: '/reset-password', element: <ResetPassword /> },
+   // { path: '/chat', element: <ProtectedRoute><Sidebar/></ProtectedRoute> },
+    
+    
   ]);
   return routes;
 };
@@ -45,7 +49,9 @@ function App() {
   return (
     <BrowserRouter>
       <div className="App">
+         
         <AppRoutes />
+       
       </div>
     </BrowserRouter>
   );

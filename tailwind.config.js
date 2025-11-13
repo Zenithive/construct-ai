@@ -7,6 +7,8 @@ module.exports = {
         primary: "#2563EB", // Indigo 600
     },
   },
-  plugins: [],
+  plugins: [
+    
+  ],
 }
 };

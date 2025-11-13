@@ -9,19 +9,28 @@ import UpdatesComponent from './Updates';
 import UploadComponent from './Upload';
 import ChecklistComponent from './CheckList';
 import supabase from '../supaBase/supabaseClient';
+import SidebarLayout from './ChatSidebar';
+
+
+
 
 const ConstructAI = () => {
   const navigate = useNavigate();
   const [activeTab, setActiveTab] = useState('chat');
-  const [selectedRegion, ] = useState('india');
+  const [selectedRegion,] = useState('india');
   const [selectedCategory,] = useState('all');
   const [showMobileMenu, setShowMobileMenu] = useState(false);
   const [showProfileDropdown, setShowProfileDropdown] = useState(false);
   const [role, setRole] = useState<'admin' | 'user' | null>(null);
-  const [,setFullName] = useState('User'); // ✅ persistent fullName
+  const [, setFullName] = useState('User'); // ✅ persistent fullName
   const [firstName, setFirstName] = useState('User'); // ✅ persistent firstName
 
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  ///new
+
+
+  ////end
 
   useEffect(() => {
     const fetchUserData = async () => {
@@ -88,7 +97,7 @@ const ConstructAI = () => {
 
   const categories = [
     { value: 'all', label: 'All Categories' },
-     { value: 'building-codes', label: 'Building Codes' },
+    { value: 'building-codes', label: 'Building Codes' },
     { value: 'safety-regulations', label: 'Safety Regulations' },
     { value: 'environmental-compliance', label: 'Environmental Compliance' },
     { value: 'zoning-laws', label: 'Zoning Laws' },
@@ -128,6 +137,11 @@ const ConstructAI = () => {
       {/* Header */}
       <div className="bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm sticky top-0 z-40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
+
+
+
+
           <div className="flex items-center justify-between h-16 sm:h-20">
 
             {/* Logo */}
@@ -159,7 +173,7 @@ const ConstructAI = () => {
                   <LogOut className="h-5 w-5" />
                 </button>
 
-                {/* Dropdown Menu */}
+
                 {showProfileDropdown && (
                   <div className="absolute right-0 mt-2 w-56 bg-white rounded-xl shadow-xl border border-gray-200 z-50 overflow-hidden">
                     <div className="py-1">
@@ -218,11 +232,10 @@ const ConstructAI = () => {
                 <button
                   key={tab.id}
                   onClick={() => { setActiveTab(tab.id); setShowMobileMenu(false); }}
-                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200 ${
-                    activeTab === tab.id
-                      ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg'
-                      : 'text-gray-700 hover:bg-gray-100'
-                  }`}
+                  className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left transition-all duration-200 ${activeTab === tab.id
+                    ? 'bg-gradient-to-r from-blue-500 to-indigo-500 text-white shadow-lg'
+                    : 'text-gray-700 hover:bg-gray-100'
+                    }`}
                 >
                   <Icon className="h-5 w-5" />
                   <span className="font-medium">{tab.label}</span>
@@ -255,19 +268,22 @@ const ConstructAI = () => {
 
       {/* Desktop Navigation */}
       <div className="hidden sm:block bg-white/70 backdrop-blur-md border-b border-gray-200/50 shadow-sm">
+
+
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+
           <nav className="flex space-x-2 sm:space-x-4">
+
             {tabs.map((tab) => {
               const Icon = tab.icon;
               return (
                 <button
                   key={tab.id}
                   onClick={() => setActiveTab(tab.id)}
-                  className={`flex items-center space-x-2 py-4 px-4 border-b-3 font-semibold text-sm transition-all duration-200 relative group ${
-                    activeTab === tab.id
-                      ? 'border-blue-500 text-blue-600'
-                      : 'border-transparent text-gray-600 hover:text-blue-600 hover:bg-blue-50/50'
-                  }`}
+                  className={`flex items-center space-x-2 py-4 px-4 border-b-3 font-semibold text-sm transition-all duration-200 relative group ${activeTab === tab.id
+                    ? 'border-blue-500 text-blue-600'
+                    : 'border-transparent text-gray-600 hover:text-blue-600 hover:bg-blue-50/50'
+                    }`}
                 >
                   <Icon className={`h-5 w-5 transition-transform ${activeTab === tab.id ? 'scale-110' : 'group-hover:scale-105'}`} />
                   <span>{tab.label}</span>
@@ -283,6 +299,7 @@ const ConstructAI = () => {
 
       {/* Content */}
       <div className="max-w-7xl mx-auto px-0 sm:px-4 lg:px-6 py-4 sm:py-6">
+
         <div className="bg-white/60 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 overflow-hidden">
           {renderContent()}
         </div>
