@@ -1,6 +1,6 @@
 
 import React, { useState, useRef, useEffect } from 'react';
-import { CheckSquare, MapPin, Send} from 'lucide-react';
+import { CheckSquare, MapPin, Send } from 'lucide-react';
 
 // Extend Window interface for custom properties
 declare global {
@@ -352,9 +352,8 @@ const ChecklistComponent = () => {
         for (const key of possibleKeys) {
           if (data[key]) {
             if (Array.isArray(data[key])) {
-              let content = `# ${query} - ${selectedCountryLabel}\n\n${
-                categoryLabels.length > 0 ? `## Selected Categories\n${categoryLabels.join(', ')}\n\n` : ''
-              }## Compliance Checklist\n\n`;
+              let content = `# ${query} - ${selectedCountryLabel}\n\n${categoryLabels.length > 0 ? `## Selected Categories\n${categoryLabels.join(', ')}\n\n` : ''
+                }## Compliance Checklist\n\n`;
               const items = data[key];
               items.forEach(item => {
                 content += `- [ ] ${item}\n`;
@@ -374,7 +373,7 @@ const ChecklistComponent = () => {
             }
           }
         }
-        
+
         if (!found) {
           checklistContent = `# Generated Checklist - ${selectedCountryLabel}\n\n## Debug Info\n\nAPI Response Format:\n\`\`\`json\n${JSON.stringify(data, null, 2)}\n\`\`\`\n\n## Items\n- [ ] Review API response format\n- [ ] Contact support if issues persist`;
         }
@@ -468,157 +467,156 @@ const ChecklistComponent = () => {
 
   return (
     <>
-    <div className="flex flex-col h-full overflow-hidden">
-      {/* Controls Header - Responsive */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50 gap-3 sm:gap-4">
-        <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
-          <div className="flex items-center space-x-2">
-            <div className="p-2 bg-white rounded-lg shadow-sm">
-              <MapPin className="h-4 w-4 text-blue-600" />
+      <div className="flex flex-col h-full overflow-hidden">
+        {/* Controls Header - Responsive */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4  sm:p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50 gap-3 sm:gap-4">
+          <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-4">
+            <div className="flex items-center space-x-2">
+              <div className="p-2 bg-white rounded-lg shadow-sm">
+                <MapPin className="h-4 w-4 text-blue-600" />
+              </div>
+              <select
+                value={selectedCountry}
+                onChange={(e) => setSelectedCountry(e.target.value)}
+                className="text-sm border-2 border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+              >
+                {countries.map(country => (
+                  <option key={country.value} value={country.value}>
+                    {country.flag} {country.label}
+                  </option>
+                ))}
+              </select>
             </div>
-            <select
-              value={selectedCountry}
-              onChange={(e) => setSelectedCountry(e.target.value)}
-              className="text-sm border-2 border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
-            >
-              {countries.map(country => (
-                <option key={country.value} value={country.value}>
-                  {country.flag} {country.label}
-                </option>
-              ))}
-            </select>
+            <div className="flex items-center space-x-2">
+              <div className="p-2 bg-white rounded-lg shadow-sm">
+                <CheckSquare className="h-4 w-4 text-blue-600" />
+              </div>
+              <select
+                value={selectedCategories.length > 0 ? selectedCategories[0] : 'all'}
+                onChange={(e) => {
+                  if (e.target.value === 'all') {
+                    setSelectedCategories([]);
+                  } else {
+                    setSelectedCategories([e.target.value]);
+                  }
+                }}
+                className="text-sm border-2 border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
+              >
+                <option value="all">All Categories</option>
+                {lawCategories.map(category => (
+                  <option key={category.value} value={category.value}>
+                    {category.label}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
-          <div className="flex items-center space-x-2">
-            <div className="p-2 bg-white rounded-lg shadow-sm">
-              <CheckSquare className="h-4 w-4 text-blue-600" />
-            </div>
-            <select
-              value={selectedCategories.length > 0 ? selectedCategories[0] : 'all'}
-              onChange={(e) => {
-                if (e.target.value === 'all') {
-                  setSelectedCategories([]);
-                } else {
-                  setSelectedCategories([e.target.value]);
-                }
-              }}
-              className="text-sm border-2 border-blue-200 rounded-lg px-3 py-2 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 bg-white shadow-sm"
-            >
-              <option value="all">All Categories</option>
-              {lawCategories.map(category => (
-                <option key={category.value} value={category.value}>
-                  {category.label}
-                </option>
-              ))}
-            </select>
+          <div className="text-xs sm:text-sm font-medium text-gray-700 bg-white px-3 py-2 rounded-lg shadow-sm">
+            {checklists.length > 0 ? `📋 ${checklists.length} messages` : '👋 Start generating checklists'}
           </div>
         </div>
-        <div className="text-xs sm:text-sm font-medium text-gray-700 bg-white px-3 py-2 rounded-lg shadow-sm">
-          {checklists.length > 0 ? `📋 ${checklists.length} messages` : '👋 Start generating checklists'}
-        </div>
-      </div>
 
-      {/* Messages Area */}
-      <div className="messages-area-checklist flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4 bg-gradient-to-b from-white to-gray-50">
-        {checklists.length === 0 && (
-          <div className="text-center py-8 sm:py-12 max-w-4xl mx-auto">
-            <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-4 shadow-lg">
-              <CheckSquare className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
+        {/* Messages Area */}
+        <div className="messages-area-checklist flex-1 min-h-0 overflow-y-auto p-4 sm:p-6 space-y-4 bg-gradient-to-b from-white to-gray-50">
+          {checklists.length === 0 && (
+            <div className="text-center py-8 sm:py-12 max-w-4xl mx-auto">
+              <div className="inline-flex items-center justify-center w-16 h-16 sm:w-20 sm:h-20 bg-gradient-to-br from-blue-500 to-indigo-600 rounded-2xl mb-4 shadow-lg">
+                <CheckSquare className="h-8 w-8 sm:h-10 sm:w-10 text-white" />
+              </div>
+              <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Generate compliance checklists</h3>
+              <p className="text-base sm:text-lg text-gray-600 mb-8 px-4">Get customized checklists with proper citations and sources</p>
+
+              <div className="grid grid-cols-1 gap-3 max-w-2xl mx-auto px-4">
+                {checklistTemplates.map((template, index) => (
+                  <button
+                    key={template.id}
+                    onClick={() => handleTemplateClick(template)}
+                    className="group text-left p-4 bg-white border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:shadow-lg transition-all duration-200"
+                  >
+                    <div className="flex items-start space-x-3">
+                      <div className="text-2xl">{template.icon}</div>
+                      <div className="flex-1">
+                        <h4 className="text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors">{template.title}</h4>
+                        <p className="text-xs text-gray-500 mt-1">{template.description}</p>
+                      </div>
+                    </div>
+                  </button>
+                ))}
+              </div>
             </div>
-            <h3 className="text-2xl sm:text-3xl font-bold text-gray-900 mb-3">Generate compliance checklists</h3>
-            <p className="text-base sm:text-lg text-gray-600 mb-8 px-4">Get customized checklists with proper citations and sources</p>
+          )}
 
-            <div className="grid grid-cols-1 gap-3 max-w-2xl mx-auto px-4">
-              {checklistTemplates.map((template, index) => (
-                <button
-                  key={template.id}
-                  onClick={() => handleTemplateClick(template)}
-                  className="group text-left p-4 bg-white border-2 border-gray-200 rounded-xl hover:border-blue-500 hover:shadow-lg transition-all duration-200"
-                >
-                  <div className="flex items-start space-x-3">
-                    <div className="text-2xl">{template.icon}</div>
-                    <div className="flex-1">
-                      <h4 className="text-sm font-medium text-gray-700 group-hover:text-blue-600 transition-colors">{template.title}</h4>
-                      <p className="text-xs text-gray-500 mt-1">{template.description}</p>
+          {checklists.map((message, index) => (
+            <div key={index} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom`}>
+              <div className={`max-w-[85%] sm:max-w-3xl p-4 sm:p-5 rounded-2xl shadow-md ${message.type === 'user'
+                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
+                  : 'bg-white border-2 border-gray-100'
+                }`}>
+                {message.type === 'ai' ? renderChecklistContent(message.content) : <div className="whitespace-pre-wrap text-sm sm:text-base font-medium">{message.content}</div>}
+
+                {message.citations && (
+                  <div className="mt-4 pt-4 border-t border-gray-200">
+                    <div className="text-xs sm:text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                      <span className="mr-2">📚</span> Sources:
+                    </div>
+                    {message.citations.map((citation, i) => (
+                      <div key={i} className="text-xs sm:text-sm mb-2 pl-4 border-l-2 border-blue-200">
+                        📄 {renderCitationContent(citation)}
+                      </div>
+                    ))}
+                    <div className="mt-3 flex items-center space-x-2">
+                      <div className="flex-1 bg-gray-200 rounded-full h-2">
+                        <div
+                          className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full"
+                          style={{ width: `${message.confidence}%` }}
+                        ></div>
+                      </div>
+                      <span className="text-xs font-semibold text-gray-600">{message.confidence}%</span>
                     </div>
                   </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
+                )}
 
-        {checklists.map((message, index) => (
-          <div key={index} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom`}>
-            <div className={`max-w-[85%] sm:max-w-3xl p-4 sm:p-5 rounded-2xl shadow-md ${
-              message.type === 'user'
-                ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
-                : 'bg-white border-2 border-gray-100'
-            }`}>
-              {message.type === 'ai' ? renderChecklistContent(message.content) : <div className="whitespace-pre-wrap text-sm sm:text-base font-medium">{message.content}</div>}
-
-              {message.citations && (
-                <div className="mt-4 pt-4 border-t border-gray-200">
-                  <div className="text-xs sm:text-sm font-semibold text-gray-700 mb-3 flex items-center">
-                    <span className="mr-2">📚</span> Sources:
-                  </div>
-                  {message.citations.map((citation, i) => (
-                    <div key={i} className="text-xs sm:text-sm mb-2 pl-4 border-l-2 border-blue-200">
-                      📄 {renderCitationContent(citation)}
-                    </div>
-                  ))}
-                  <div className="mt-3 flex items-center space-x-2">
-                    <div className="flex-1 bg-gray-200 rounded-full h-2">
-                      <div
-                        className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full"
-                        style={{width: `${message.confidence}%`}}
-                      ></div>
-                    </div>
-                    <span className="text-xs font-semibold text-gray-600">{message.confidence}%</span>
-                  </div>
+                <div className="text-xs opacity-60 mt-3 font-medium">
+                  {message.timestamp.toLocaleTimeString()}
                 </div>
-              )}
-
-              <div className="text-xs opacity-60 mt-3 font-medium">
-                {message.timestamp.toLocaleTimeString()}
               </div>
             </div>
-          </div>
-        ))}
+          ))}
 
-        {isLoading && (
-          <div className="flex justify-start animate-pulse">
-            <div className="bg-white border-2 border-gray-100 shadow-md rounded-2xl p-4 sm:p-5">
-              <div className="flex items-center space-x-3">
-                <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent"></div>
-                <span className="text-sm font-medium text-gray-600">AI is thinking...</span>
+          {isLoading && (
+            <div className="flex justify-start animate-pulse">
+              <div className="bg-white border-2 border-gray-100 shadow-md rounded-2xl p-4 sm:p-5">
+                <div className="flex items-center space-x-3">
+                  <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent"></div>
+                  <span className="text-sm font-medium text-gray-600">AI is thinking...</span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
-        <div ref={messagesEndRef} />
-      </div>
+          )}
+          <div ref={messagesEndRef} />
+        </div>
 
-      {/* Input Area - Fixed at bottom */}
-      <div className="flex-shrink-0 border-t-2 border-gray-200 bg-white p-4 sm:p-5 shadow-lg">
-        <div className="flex space-x-3 max-w-4xl mx-auto">
-          <input
-            type="text"
-            value={inputMessage}
-            onChange={(e) => setInputMessage(e.target.value)}
-            onKeyPress={(e) => e.key === 'Enter' && generateChecklist()}
-            placeholder="Ask for compliance checklists, safety standards, or requirements..."
-            className="flex-1 border-2 border-gray-300 rounded-xl px-4 py-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
-          />
-          <button
-            onClick={generateChecklist}
-            disabled={!inputMessage.trim() || isLoading}
-            className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-5 py-3 rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 shadow-md transition-all duration-200 hover:shadow-lg"
-          >
-            <Send className="h-5 w-5" />
-          </button>
+        {/* Input Area - Fixed at bottom */}
+        <div className="flex-shrink-0 border-t-2 border-gray-200 bg-white p-4 sm:p-5 shadow-lg">
+          <div className="flex space-x-3 max-w-4xl mx-auto">
+            <input
+              type="text"
+              value={inputMessage}
+              onChange={(e) => setInputMessage(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && generateChecklist()}
+              placeholder="Ask for compliance checklists, safety standards, or requirements..."
+              className="flex-1 border-2 border-gray-300 rounded-xl px-4 py-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
+            />
+            <button
+              onClick={generateChecklist}
+              disabled={!inputMessage.trim() || isLoading}
+              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-5 py-3 rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 shadow-md transition-all duration-200 hover:shadow-lg"
+            >
+              <Send className="h-5 w-5" />
+            </button>
+          </div>
         </div>
       </div>
-    </div>
     </>
   );
 };
