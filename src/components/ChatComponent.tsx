@@ -472,19 +472,27 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
                     const fullContent = jsonData.data.full_content || '';
                     if (fullContent && fullContent !== previousContent) {
                       previousContent = fullContent;
+                      // Use local variable to avoid loop closure issue
+                      const contentToUpdate = fullContent;
                       setMessages(prev => {
                         const newMessages = [...prev];
                         const lastMessage = newMessages[newMessages.length - 1];
                         if (lastMessage && lastMessage.type === 'ai') {
                           const updatedMessage = {
                             ...lastMessage,
-                            content: fullContent
+                            content: contentToUpdate
                           };
                           newMessages[newMessages.length - 1] = updatedMessage;
-                          finalAIMessage = updatedMessage;
+                          return newMessages;
                         }
                         return newMessages;
                       });
+                      // Capture finalAIMessage after state update
+                      finalAIMessage = {
+                        type: 'ai',
+                        content: contentToUpdate,
+                        timestamp: new Date()
+                      };
                     }
                   }
                 } catch (e) {
@@ -538,10 +546,16 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
                         content: currentContent
                       };
                       newMessages[newMessages.length - 1] = updatedMessage;
-                      finalAIMessage = updatedMessage; // Track the final message
+                      return newMessages;
                     }
                     return newMessages;
                   });
+                  // Track the final message outside the setState callback
+                  finalAIMessage = {
+                    type: 'ai',
+                    content: currentContent,
+                    timestamp: new Date()
+                  };
                 }
               }
             } catch (e) {

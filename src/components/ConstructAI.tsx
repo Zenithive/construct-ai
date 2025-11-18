@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useRef } from 'react';
 import {
-  Upload, CheckSquare, Bell, User, Search, Shield, Menu, X, Power,
+  Upload, User, Shield, Menu, X, Power,
   LogOut
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
