@@ -17,15 +17,28 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }): React.Reac
 
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
 
-      if (!session) {
-        // No session found - redirect to login (root path)
+        if (error) {
+          console.error('Session check error:', error);
+          setIsAuthenticated(false);
+          navigate('/', { replace: true });
+          return;
+        }
+
+        if (!session) {
+          // No session found - redirect to login (root path)
+          setIsAuthenticated(false);
+          navigate('/', { replace: true });
+        } else {
+          // Session exists - allow access
+          setIsAuthenticated(true);
+        }
+      } catch (err) {
+        console.error('Session check failed:', err);
         setIsAuthenticated(false);
         navigate('/', { replace: true });
-      } else {
-        // Session exists - allow access
-        setIsAuthenticated(true);
       }
     };
 

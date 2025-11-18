@@ -455,16 +455,56 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
 
       let previousContent = '';
       let finalAIMessage: Message | null = null;
+      let buffer = ''; // Buffer for incomplete SSE events
 
       while (true) {
         const { done, value } = await reader.read();
 
-        if (done) break;
+        if (done) {
+          // Process any remaining data in buffer
+          if (buffer.trim()) {
+            const lines = buffer.split('\n');
+            for (const line of lines) {
+              if (line.startsWith('data: ') && !line.includes('[DONE]')) {
+                try {
+                  const jsonData = JSON.parse(line.substring(6));
+                  if (jsonData.type === 'content' && jsonData.data) {
+                    const fullContent = jsonData.data.full_content || '';
+                    if (fullContent && fullContent !== previousContent) {
+                      previousContent = fullContent;
+                      setMessages(prev => {
+                        const newMessages = [...prev];
+                        const lastMessage = newMessages[newMessages.length - 1];
+                        if (lastMessage && lastMessage.type === 'ai') {
+                          const updatedMessage = {
+                            ...lastMessage,
+                            content: fullContent
+                          };
+                          newMessages[newMessages.length - 1] = updatedMessage;
+                          finalAIMessage = updatedMessage;
+                        }
+                        return newMessages;
+                      });
+                    }
+                  }
+                } catch (e) {
+                  console.error('Error parsing final buffer:', e);
+                }
+              }
+            }
+          }
+          break;
+        }
 
         const chunk = decoder.decode(value, { stream: true });
+        buffer += chunk;
 
-        // Parse SSE format
-        const lines = chunk.split('\n');
+        // Parse SSE format - split by lines
+        const lines = buffer.split('\n');
+
+        // Keep the last potentially incomplete line in buffer
+        buffer = lines.pop() || '';
+
         for (const line of lines) {
           if (line.startsWith('data: ') && !line.includes('[DONE]')) {
             try {
@@ -483,7 +523,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
                 const fullContent = jsonData.data.full_content || '';
 
                 // Only append new content that wasn't in previous chunk
-                if (fullContent !== previousContent) {
+                if (fullContent && fullContent !== previousContent) {
                   const currentContent = fullContent;
                   previousContent = fullContent;
 
@@ -502,11 +542,10 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
                     }
                     return newMessages;
                   });
-
-                  // Print only new words being streamed
                 }
               }
             } catch (e) {
+              console.error('Error parsing SSE line:', e);
             }
           }
         }

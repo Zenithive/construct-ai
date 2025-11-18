@@ -14,9 +14,18 @@ const Login = () => {
 
   useEffect(() => {
     const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (session) {
-        navigate('/');
+      try {
+        const { data: { session }, error } = await supabase.auth.getSession();
+        if (error) {
+          console.error('Session check error:', error);
+          return;
+        }
+        if (session) {
+          navigate('/dashboard');
+        }
+      } catch (err) {
+        console.error('Session check failed:', err);
+        // Silently fail - user can still attempt to login
       }
     };
     checkSession();
