@@ -1,5 +1,5 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { MessageSquare, Plus, Trash2, Menu, X } from 'lucide-react';
+import { MessageSquare, Plus, Trash2 } from 'lucide-react';
 import supabase from '../supaBase/supabaseClient';
 
 type ChatSession = {
