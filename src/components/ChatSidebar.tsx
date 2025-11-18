@@ -15,12 +15,13 @@ type ChatSidebarProps = {
   onNewChat: () => void;
   onSelectSession: (sessionId: string) => void;
   onDeleteSession: (sessionId: string) => void;
+  isOpen: boolean;
+  onToggle: () => void;
 };
 
-const ChatSidebar = forwardRef(({ currentSessionId, onNewChat, onSelectSession, onDeleteSession }: ChatSidebarProps, ref) => {
+const ChatSidebar = forwardRef(({ currentSessionId, onNewChat, onSelectSession, onDeleteSession, isOpen, onToggle }: ChatSidebarProps, ref) => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [userFirstName, setUserFirstName] = useState<string>('User');
 
   // Expose refresh function to parent
@@ -139,37 +140,29 @@ const ChatSidebar = forwardRef(({ currentSessionId, onNewChat, onSelectSession, 
 
   return (
     <>
-      {/* Mobile Menu Button */}
-      <button
-        onClick={() => setIsSidebarOpen(!isSidebarOpen)}
-        className="lg:hidden fixed top-4 left-4 z-50 p-2 bg-white rounded-lg shadow-md hover:bg-gray-100"
-      >
-        {isSidebarOpen ? <X className="h-6 w-6" /> : <Menu className="h-6 w-6" />}
-      </button>
-
       {/* Overlay for mobile */}
-      {isSidebarOpen && (
+      {isOpen && (
         <div
-          className="lg:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
-          onClick={() => setIsSidebarOpen(false)}
+          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
+          onClick={onToggle}
         />
       )}
 
       {/* Sidebar */}
       <div
         className={`
-          fixed lg:static inset-y-0 left-0 z-40
-          w-72 bg-gradient-to-b from-gray-50 to-gray-100 border-r border-gray-200 flex flex-col shadow-lg
-          transform transition-transform duration-300 ease-in-out
-          ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'}
+          fixed md:relative inset-y-0 left-0 z-40
+          bg-gradient-to-b from-gray-50 to-gray-100 border-r border-gray-200 flex flex-col shadow-lg
+          transform transition-all duration-300 ease-in-out flex-shrink-0
+          ${isOpen ? 'w-72 translate-x-0' : 'w-0 md:w-0 -translate-x-full md:translate-x-0'}
         `}
+        style={{ overflow: isOpen ? 'visible' : 'hidden' }}
       >
         {/* New Chat Button */}
         <div className="p-4 border-b border-gray-200">
           <button
             onClick={() => {
               onNewChat();
-              setIsSidebarOpen(false);
             }}
             className="w-full flex items-center space-x-3 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg group"
           >
@@ -197,7 +190,6 @@ const ChatSidebar = forwardRef(({ currentSessionId, onNewChat, onSelectSession, 
                 key={session.id}
                 onClick={() => {
                   onSelectSession(session.id);
-                  setIsSidebarOpen(false);
                 }}
                 className={`
                   group flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all

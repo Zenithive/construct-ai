@@ -81,7 +81,7 @@ const AppRoutes = () => {
 function App() {
   return (
     <BrowserRouter>
-      <div className="App">
+      <div className="App h-full overflow-hidden">
         <AppRoutes />
       </div>
     </BrowserRouter>

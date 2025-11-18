@@ -6,6 +6,7 @@ import supabase from '../supaBase/supabaseClient';
 const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories }) => {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [userId, setUserId] = useState<string | null>(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const sidebarRef = useRef<any>(null);
   const isCreatingSession = useRef(false);
 
@@ -132,7 +133,7 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
   };
 
   return (
-    <div className="flex h-screen overflow-hidden bg-gray-100">
+    <div className="flex h-full overflow-hidden bg-gray-100">
       {/* Sidebar */}
       <ChatSidebar
         ref={sidebarRef}
@@ -140,10 +141,12 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
         onNewChat={handleNewChat}
         onSelectSession={handleSelectSession}
         onDeleteSession={handleDeleteSession}
+        isOpen={isSidebarOpen}
+        onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
       />
 
       {/* Main Chat Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+      <div className="flex-1 flex flex-col overflow-hidden h-full">
         {currentSessionId ? (
           <ChatComponent
             selectedRegion={selectedRegion}
@@ -152,6 +155,8 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
             categories={categories}
             sessionId={currentSessionId}
             onMessageSent={handleMessageSent}
+            onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
+            isSidebarOpen={isSidebarOpen}
             key={currentSessionId} // Force re-render when session changes
           />
         ) : (

@@ -9,6 +9,7 @@ const Login = () => {
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -41,12 +42,16 @@ const Login = () => {
     }
   }, [message]);
 
-  const handleLogin = async (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent, recaptchaToken?: string | null) => {
     e.preventDefault();
     setError(null);
     setMessage(null);
+    setIsLoading(true);
 
     try {
+      // Note: recaptchaToken will be null for login since showCaptcha=false
+      // You can enable it later if needed by setting showCaptcha={true} in the AuthForm
+
       const { error } = await supabase.auth.signInWithPassword({ email, password });
 
       if (error) {
@@ -55,13 +60,16 @@ const Login = () => {
         } else {
           setError(error.message);
         }
+        setIsLoading(false);
         return;
       }
 
       setMessage('Login successful!');
+      setIsLoading(false);
       navigate('/dashboard');
     } catch (err: any) {
       setError('An unexpected error occurred. Please try again.');
+      setIsLoading(false);
     }
   };
 
@@ -133,6 +141,7 @@ const Login = () => {
           onSubmit={handleLogin}
           buttonText="Login"
           showCaptcha={false} // captcha hidden
+          isLoading={isLoading}
         />
         <p className="mt-4 text-center text-sm text-gray-600">
           Forgot your password?{' '}

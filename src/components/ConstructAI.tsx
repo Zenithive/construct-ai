@@ -95,10 +95,10 @@ const ConstructAI = () => {
   ];
 
   const tabs = [
-    { id: 'chat', label: 'Ask AI', icon: Search },
+    // { id: 'chat', label: 'Ask AI', icon: Search },
     role === 'admin' && { id: 'upload', label: 'Upload & Ask', icon: Upload },
-    { id: 'checklist', label: 'Checklists', icon: CheckSquare },
-    { id: 'updates', label: 'Updates', icon: Bell },
+    // { id: 'checklist', label: 'Checklists', icon: CheckSquare },
+    // { id: 'updates', label: 'Updates', icon: Bell },
   ].filter(Boolean) as { id: string; label: string; icon: any }[];
 
   const renderContent = () => {
@@ -117,10 +117,10 @@ const ConstructAI = () => {
   };
 
   return (
-    <div className="bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 min-h-screen">
+    <div className="bg-gradient-to-br from-gray-50 via-blue-50 to-indigo-50 h-screen flex flex-col overflow-hidden">
 
       {/* Header */}
-      <div className="bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm sticky top-0 z-40">
+      <div className="bg-white/80 backdrop-blur-md border-b border-gray-200/50 shadow-sm flex-shrink-0 z-40">
         <div className=" mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16 sm:h-20">
 
@@ -197,7 +197,7 @@ const ConstructAI = () => {
 
       {/* Mobile Menu */}
       {showMobileMenu && (
-        <div className="sm:hidden bg-white/95 backdrop-blur-md border-b shadow-lg animate-in slide-in-from-top">
+        <div className="sm:hidden bg-white/95 backdrop-blur-md border-b shadow-lg animate-in slide-in-from-top flex-shrink-0">
           <div className="px-4 py-3 space-y-2">
             <div className="px-3 py-2 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200 mb-3">
               <p className="text-xs text-gray-600">Signed in as</p>
@@ -244,7 +244,7 @@ const ConstructAI = () => {
       )}
 
       {/* Desktop Navigation */}
-      <div className="hidden sm:block bg-white/70 backdrop-blur-md border-b border-gray-200/50 shadow-sm">
+      <div className="hidden sm:block bg-white/70 backdrop-blur-md border-b border-gray-200/50 shadow-sm flex-shrink-0">
         <div className=" mx-auto px-4 sm:px-6 lg:px-8">
           <nav className="flex space-x-2 sm:space-x-4">
             {tabs.map((tab) => {
@@ -272,8 +272,8 @@ const ConstructAI = () => {
       </div>
 
       {/* Content */}
-      <div className=" mx-auto px-0 sm:px-4 lg:px-6 py-4 sm:py-6">
-        <div className="bg-white/60 backdrop-blur-sm rounded-2xl shadow-xl border border-gray-200/50 overflow-hidden">
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full">
           {renderContent()}
         </div>
       </div>
