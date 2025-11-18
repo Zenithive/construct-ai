@@ -1,5 +1,6 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useRef } from "react";
 import { Eye, EyeOff } from "lucide-react";
+import ReCAPTCHA from "react-google-recaptcha";
 
 interface AuthFormProps {
   email: string;
@@ -10,10 +11,11 @@ interface AuthFormProps {
   setFirstName?: (name: string) => void;
   lastName?: string;
   setLastName?: (name: string) => void;
-  onSubmit: (e: React.FormEvent) => void;
+  onSubmit: (e: React.FormEvent, recaptchaToken?: string | null) => void;
   buttonText: string;
   showNameFields?: boolean;
   showCaptcha?: boolean; // show captcha only for signup
+  isLoading?: boolean;
 }
 
 const AuthForm: React.FC<AuthFormProps> = ({
@@ -29,6 +31,7 @@ const AuthForm: React.FC<AuthFormProps> = ({
   buttonText,
   showNameFields = false,
   showCaptcha = false,
+  isLoading = false,
 }) => {
   const [emailError, setEmailError] = useState("");
   const [passwordError, setPasswordError] = useState("");
@@ -36,9 +39,8 @@ const AuthForm: React.FC<AuthFormProps> = ({
   const [lastNameError, setLastNameError] = useState("");
   const [showPassword, setShowPassword] = useState(false);
 
-  const [captcha, setCaptcha] = useState("");
-  const [userInput, setUserInput] = useState("");
-  const [captchaError, setCaptchaError] = useState("");
+  const recaptchaRef = useRef<ReCAPTCHA>(null);
+  const [recaptchaError, setRecaptchaError] = useState("");
 
   const validateEmail = (email: string) =>
     /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
@@ -49,30 +51,40 @@ const AuthForm: React.FC<AuthFormProps> = ({
     return re.test(password);
   };
 
-  // generate captcha
-  const generateCaptcha = () => {
-    const chars =
-      "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz123456789";
-    let code = "";
-    for (let i = 0; i < 6; i++) {
-      code += chars.charAt(Math.floor(Math.random() * chars.length));
-    }
-    setCaptcha(code);
-    setUserInput("");
-    setCaptchaError("");
-  };
-
-  useEffect(() => {
-    if (showCaptcha) generateCaptcha();
-  }, [showCaptcha]);
-
   const handleEmailChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const value = e.target.value.toLowerCase();
     setEmail(value);
     setEmailError(validateEmail(value) ? "" : "Invalid email address");
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handlePasswordChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setPassword(value);
+    // Clear error if password becomes valid
+    if (passwordError && validatePassword(value)) {
+      setPasswordError("");
+    }
+  };
+
+  const handleFirstNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setFirstName?.(value);
+    // Clear error if first name becomes valid
+    if (firstNameError && value.trim()) {
+      setFirstNameError("");
+    }
+  };
+
+  const handleLastNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const value = e.target.value;
+    setLastName?.(value);
+    // Clear error if last name becomes valid
+    if (lastNameError && value.trim()) {
+      setLastNameError("");
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     let hasError = false;
 
@@ -100,15 +112,25 @@ const AuthForm: React.FC<AuthFormProps> = ({
       } else setLastNameError("");
     }
 
+    // Validate ReCAPTCHA if enabled
+    let recaptchaToken: string | null = null;
     if (showCaptcha) {
-      if (userInput.toUpperCase() !== captcha.toUpperCase()) {
-        setCaptchaError("Captcha does not match");
+      recaptchaToken = recaptchaRef.current?.getValue() || null;
+      if (!recaptchaToken) {
+        setRecaptchaError("Please complete the reCAPTCHA");
         hasError = true;
-        generateCaptcha();
-      } else setCaptchaError("");
+      } else {
+        setRecaptchaError("");
+      }
     }
 
-    if (!hasError) onSubmit(e);
+    if (!hasError) {
+      onSubmit(e, recaptchaToken);
+      // Reset reCAPTCHA after submission
+      if (showCaptcha) {
+        recaptchaRef.current?.reset();
+      }
+    }
   };
 
   return (
@@ -120,8 +142,10 @@ const AuthForm: React.FC<AuthFormProps> = ({
               type="text"
               placeholder="First Name"
               value={firstName}
-              onChange={(e) => setFirstName?.(e.target.value)}
-              className="w-full px-4 py-2 border rounded-md"
+              onChange={handleFirstNameChange}
+              className={`w-full px-4 py-2 border rounded-md ${
+                firstNameError ? "border-red-500" : ""
+              }`}
             />
             {firstNameError && (
               <p className="text-red-500 text-sm mt-1">{firstNameError}</p>
@@ -133,8 +157,10 @@ const AuthForm: React.FC<AuthFormProps> = ({
               type="text"
               placeholder="Last Name"
               value={lastName}
-              onChange={(e) => setLastName?.(e.target.value)}
-              className="w-full px-4 py-2 border rounded-md"
+              onChange={handleLastNameChange}
+              className={`w-full px-4 py-2 border rounded-md ${
+                lastNameError ? "border-red-500" : ""
+              }`}
             />
             {lastNameError && (
               <p className="text-red-500 text-sm mt-1">{lastNameError}</p>
@@ -162,7 +188,7 @@ const AuthForm: React.FC<AuthFormProps> = ({
             type={showPassword ? "text" : "password"}
             placeholder="Password"
             value={password}
-            onChange={(e) => setPassword(e.target.value)}
+            onChange={handlePasswordChange}
             className={`w-full px-4 py-2 pr-10 border rounded-md ${
               passwordError ? "border-red-500" : ""
             }`}
@@ -185,52 +211,53 @@ const AuthForm: React.FC<AuthFormProps> = ({
         )}
       </div>
 
-      {/* Captcha only if showCaptcha=true */}
+      {/* Google ReCAPTCHA only if showCaptcha=true */}
       {showCaptcha && (
-        <>
-          <div className="flex items-center space-x-2">
-            <input
-              type="text"
-              value={captcha}
-              readOnly
-              onCopy={(e) => e.preventDefault()}
-              onCut={(e) => e.preventDefault()}
-              onContextMenu={(e) => e.preventDefault()}
-              className="flex-1 px-4 py-2 border bg-gray-200 font-bold text-center tracking-widest rounded select-none cursor-not-allowed"
-            />
-            <button
-              type="button"
-              onClick={generateCaptcha}
-              className="bg-indigo-600 text-white px-3 py-2 rounded hover:bg-indigo-700 transition"
-            >
-              Refresh
-            </button>
-          </div>
-
-          <input
-            type="text"
-            placeholder="Enter Captcha"
-            value={userInput}
-            onChange={(e) => setUserInput(e.target.value)}
-            onCopy={(e) => e.preventDefault()}
-            onPaste={(e) => e.preventDefault()}
-            onCut={(e) => e.preventDefault()}
-            autoComplete="off"
-            className={`w-full px-4 py-2 border rounded-md ${
-              captchaError ? "border-red-500" : ""
-            }`}
-          />
-          {captchaError && (
-            <p className="text-red-500 text-sm mt-1">{captchaError}</p>
+        <div className="flex flex-col items-center">
+              <ReCAPTCHA
+                className=""
+                ref={recaptchaRef}
+                sitekey="6Ld9UQssAAAAANQ8NR4XY4z0K0QouhJL0CRD2Q1z"
+                onChange={() => setRecaptchaError("")}
+                />
+          {recaptchaError && (
+            <p className="text-red-500 text-sm mt-2">{recaptchaError}</p>
           )}
-        </>
+        </div>
       )}
 
       <button
         type="submit"
-        className="w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-primary-dark transition"
+        disabled={isLoading}
+        className="w-full bg-primary text-white py-2 px-4 rounded-md hover:bg-primary-dark transition disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
       >
-        {buttonText}
+        {isLoading ? (
+          <>
+            <svg
+              className="animate-spin -ml-1 mr-3 h-5 w-5 text-white"
+              xmlns="http://www.w3.org/2000/svg"
+              fill="none"
+              viewBox="0 0 24 24"
+            >
+              <circle
+                className="opacity-25"
+                cx="12"
+                cy="12"
+                r="10"
+                stroke="currentColor"
+                strokeWidth="4"
+              ></circle>
+              <path
+                className="opacity-75"
+                fill="currentColor"
+                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
+              ></path>
+            </svg>
+            Processing...
+          </>
+        ) : (
+          buttonText
+        )}
       </button>
     </form>
   );

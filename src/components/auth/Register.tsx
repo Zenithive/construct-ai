@@ -11,6 +11,7 @@ const Register = () => {
   const [lastName, setLastName] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
   // Auto-dismiss error after 5 seconds
@@ -33,26 +34,42 @@ const Register = () => {
     }
   }, [message]);
 
-  const handleSignUp = async (e: React.FormEvent) => {
+  const handleSignUp = async (e: React.FormEvent, recaptchaToken?: string | null) => {
     e.preventDefault();
     setError(null);
     setMessage(null);
 
+    // Verify recaptcha token is present
+    if (!recaptchaToken) {
+      setError('Please complete the reCAPTCHA verification.');
+      return;
+    }
+
+    setIsLoading(true);
+
     try {
+      // You can verify the recaptcha token on your backend here
+      // For now, we'll proceed with signup if token exists
+
       const { error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: { firstName, lastName },
+          data: { firstName, lastName, recaptchaToken },
         },
       });
 
-      if (error) throw error;
+      if (error) {
+        setIsLoading(false);
+        throw error;
+      }
 
       setMessage('Signup successful! Redirecting to OTP verification...');
+      setIsLoading(false);
       setTimeout(() => navigate('/verify-otp', { state: { email, firstName, lastName } }), 1500);
     } catch (err: any) {
       setError(err.message || 'An unexpected error occurred. Please try again.');
+      setIsLoading(false);
     }
   };
 
@@ -87,6 +104,7 @@ const Register = () => {
           buttonText="Sign Up"
           showNameFields={true}
           showCaptcha={true} // captcha visible here
+          isLoading={isLoading}
         />
 
         <p className="mt-4 text-center text-sm text-gray-600">

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Search, ArrowDown } from 'lucide-react';
+import { Send, Search, ArrowDown, Menu } from 'lucide-react';
 import supabase from '../supaBase/supabaseClient';
 
 // Types
@@ -11,7 +11,7 @@ type Message = {
   timestamp: Date;
 };
 
-const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, sessionId, onMessageSent }) => {
+const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, sessionId, onMessageSent, onToggleSidebar, isSidebarOpen }) => {
 
   const [messages, setMessages] = useState([] as Message[]);
   const [inputMessage, setInputMessage] = useState('');
@@ -23,6 +23,9 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
   const [userId, setUserId] = useState<string | null>(null);
   const [isAutoScroll, setIsAutoScroll] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const isProcessingRef = useRef(false);
+  const abortControllerRef = useRef<AbortController | null>(null);
+  const [streamingSources, setStreamingSources] = useState<{db_sources: any[], web_sources: any[]}>({db_sources: [], web_sources: []});
 
   const sampleQuestions = [
     "What are the fire safety requirements for high-rise buildings?",
@@ -305,6 +308,16 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
     setCategory(selectedCategory);
   }, [selectedRegion, selectedCategory]);
 
+  // Cleanup effect: abort any ongoing requests when component unmounts
+  useEffect(() => {
+    return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+        abortControllerRef.current = null;
+      }
+    };
+  }, []);
+
   const generateMockResponse = (question: string): Message => {
     const responses = {
       "fire": {
@@ -383,7 +396,9 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
   };
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim()) return;
+    if (!inputMessage.trim() || isProcessingRef.current) return;
+
+    isProcessingRef.current = true;
 
     const userMessage: Message = { type: 'user', content: inputMessage, timestamp: new Date() };
     setMessages(prev => [...prev, userMessage]);
@@ -397,6 +412,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
     const query = inputMessage;
     setInputMessage('');
     setIsLoading(true);
+    setStreamingSources({db_sources: [], web_sources: []}); // Reset sources
 
     try {
       // Create initial AI message that will be updated with streaming content
@@ -406,6 +422,9 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
         timestamp: new Date()
       };
       setMessages(prev => [...prev, aiMessage]);
+
+      // Create AbortController (for cleanup on unmount, no timeout)
+      abortControllerRef.current = new AbortController();
 
       // Get the country value (use the internal value, not label)
       const requestBody = {
@@ -419,7 +438,8 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(requestBody)
+        body: JSON.stringify(requestBody),
+        signal: abortControllerRef.current.signal
       });
 
       if (!response.ok) {
@@ -434,76 +454,139 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
       }
 
       let previousContent = '';
-      
+      let finalAIMessage: Message | null = null;
+      let buffer = ''; // Buffer for incomplete SSE events
+
       while (true) {
         const { done, value } = await reader.read();
-        
-        if (done) break;
-        
+
+        if (done) {
+          // Process any remaining data in buffer
+          if (buffer.trim()) {
+            const lines = buffer.split('\n');
+            for (const line of lines) {
+              if (line.startsWith('data: ') && !line.includes('[DONE]')) {
+                try {
+                  const jsonData = JSON.parse(line.substring(6));
+                  if (jsonData.type === 'content' && jsonData.data) {
+                    const fullContent = jsonData.data.full_content || '';
+                    if (fullContent && fullContent !== previousContent) {
+                      previousContent = fullContent;
+                      setMessages(prev => {
+                        const newMessages = [...prev];
+                        const lastMessage = newMessages[newMessages.length - 1];
+                        if (lastMessage && lastMessage.type === 'ai') {
+                          const updatedMessage = {
+                            ...lastMessage,
+                            content: fullContent
+                          };
+                          newMessages[newMessages.length - 1] = updatedMessage;
+                          finalAIMessage = updatedMessage;
+                        }
+                        return newMessages;
+                      });
+                    }
+                  }
+                } catch (e) {
+                  console.error('Error parsing final buffer:', e);
+                }
+              }
+            }
+          }
+          break;
+        }
+
         const chunk = decoder.decode(value, { stream: true });
-        
-        // Parse SSE format
-        const lines = chunk.split('\n');
+        buffer += chunk;
+
+        // Parse SSE format - split by lines
+        const lines = buffer.split('\n');
+
+        // Keep the last potentially incomplete line in buffer
+        buffer = lines.pop() || '';
+
         for (const line of lines) {
           if (line.startsWith('data: ') && !line.includes('[DONE]')) {
             try {
               const jsonData = JSON.parse(line.substring(6));
+
+              // Handle metadata (sources)
+              if (jsonData.type === 'metadata' && jsonData.data) {
+                setStreamingSources({
+                  db_sources: jsonData.data.db_sources || [],
+                  web_sources: jsonData.data.web_sources || []
+                });
+              }
+
+              // Handle content
               if (jsonData.type === 'content' && jsonData.data) {
                 const fullContent = jsonData.data.full_content || '';
-                
+
                 // Only append new content that wasn't in previous chunk
-                if (fullContent !== previousContent) {
+                if (fullContent && fullContent !== previousContent) {
                   const currentContent = fullContent;
                   previousContent = fullContent;
-                  
+
                   // Update the AI message with new content
                   setMessages(prev => {
                     const newMessages = [...prev];
                     const lastMessage = newMessages[newMessages.length - 1];
                     if (lastMessage && lastMessage.type === 'ai') {
-                      lastMessage.content = currentContent;
-                      // Debug: Log the content to see PDF citation format
+                      // Create a new object instead of mutating
+                      const updatedMessage = {
+                        ...lastMessage,
+                        content: currentContent
+                      };
+                      newMessages[newMessages.length - 1] = updatedMessage;
+                      finalAIMessage = updatedMessage; // Track the final message
                     }
                     return newMessages;
                   });
-
-                  // Print only new words being streamed
                 }
               }
             } catch (e) {
+              console.error('Error parsing SSE line:', e);
             }
           }
         }
       }
 
       // Save the complete AI message to Supabase after streaming is done
-      setMessages(prev => {
-        const lastMessage = prev[prev.length - 1];
-        if (lastMessage && lastMessage.type === 'ai') {
-          // Save the final AI message to Supabase
-          saveMessageToSupabase(lastMessage);
-        }
-        return prev;
-      });
-
+      if (finalAIMessage) {
+        await saveMessageToSupabase(finalAIMessage);
+      }
+    } catch (error: any) {
+      // Check if it's an abort error (component unmounted)
+      if (error.name === 'AbortError') {
+        console.log('Request was aborted - component unmounted');
+        // Don't update message if component is unmounting
+        return;
+      } else {
+        // Fallback to mock response on other errors
+        console.error('Error during streaming:', error);
+        const aiResponse = generateMockResponse(query);
+        setMessages(prev => {
+          const newMessages = [...prev];
+          const lastMessage = newMessages[newMessages.length - 1];
+          if (lastMessage && lastMessage.type === 'ai') {
+            // Create a new object instead of mutating
+            newMessages[newMessages.length - 1] = {
+              ...lastMessage,
+              content: aiResponse.content,
+              citations: aiResponse.citations,
+              confidence: aiResponse.confidence
+            };
+            // Save the error/fallback AI message to Supabase
+            saveMessageToSupabase(newMessages[newMessages.length - 1]);
+          }
+          return newMessages;
+        });
+      }
+    } finally {
       setIsLoading(false);
-    } catch (error) {
-
-      // Fallback to mock response on error
-      const aiResponse = generateMockResponse(query);
-      setMessages(prev => {
-        const newMessages = [...prev];
-        const lastMessage = newMessages[newMessages.length - 1];
-        if (lastMessage && lastMessage.type === 'ai') {
-          lastMessage.content = aiResponse.content;
-          lastMessage.citations = aiResponse.citations;
-          lastMessage.confidence = aiResponse.confidence;
-          // Save the error/fallback AI message to Supabase
-          saveMessageToSupabase(lastMessage);
-        }
-        return newMessages;
-      });
-      setIsLoading(false);
+      setStreamingSources({db_sources: [], web_sources: []}); // Clear sources after streaming completes
+      isProcessingRef.current = false;
+      abortControllerRef.current = null; // Clean up abort controller
     }
   };
 
@@ -513,8 +596,18 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
 
 
   return (
-    <div className="flex flex-col h-screen overflow-hidden">
+    <div className="flex flex-col h-full overflow-hidden">
 
+      {/* Toggle Sidebar Button */}
+      <div className="flex-shrink-0 border-b bg-white px-4 py-3">
+        <button
+          onClick={onToggleSidebar}
+          className="p-2 hover:bg-gray-100 rounded-lg transition-colors"
+          aria-label="Toggle sidebar"
+        >
+          <Menu className="h-5 w-5 text-gray-600" />
+        </button>
+      </div>
 
       {/* Controls Header - Responsive */}
       {/* <div className="flex flex-col sm:flex-row sm:items-center justify-between p-4 sm:p-6 border-b bg-gradient-to-r from-blue-50 to-indigo-50 gap-3 sm:gap-4">
@@ -605,47 +698,103 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
         ) : (
           <>
             {messages.map((message, index) => (
-              <div key={index} className={`flex ${message.type === 'user' ? 'justify-end' : 'justify-start'} animate-in slide-in-from-bottom`}>
-                <div className={`max-w-[85%] sm:max-w-3xl p-4 sm:p-5 rounded-2xl shadow-md ${
-                  message.type === 'user'
-                    ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
-                    : 'bg-white border-2 border-gray-100'
-                }`}>
-                  {message.type === 'ai' ? renderMessageContent(message.content) : <div className="whitespace-pre-wrap text-sm sm:text-base font-medium">{message.content}</div>}
-                  {message.citations && (
-                    <div className="mt-4 pt-4 border-t border-gray-200">
-                      <div className="text-xs sm:text-sm font-semibold text-gray-700 mb-3 flex items-center">
-                        <span className="mr-2">📚</span> Sources:
-                      </div>
-                      {message.citations.map((citation, i) => (
-                        <div key={i} className="text-xs sm:text-sm mb-2 pl-4 border-l-2 border-blue-200">
-                          📄 {renderCitationContent(citation)}
-                        </div>
-                      ))}
-                      <div className="mt-3 flex items-center space-x-2">
-                        <div className="flex-1 bg-gray-200 rounded-full h-2">
-                          <div
-                            className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full"
-                            style={{width: `${message.confidence}%`}}
-                          ></div>
-                        </div>
-                        <span className="text-xs font-semibold text-gray-600">{message.confidence}%</span>
+              <div key={index}>
+                {/* User Message */}
+                {message.type === 'user' && (
+                  <div className="flex justify-end animate-in slide-in-from-bottom">
+                    <div className="max-w-[85%] sm:max-w-3xl p-4 sm:p-5 rounded-2xl shadow-md bg-gradient-to-r from-blue-600 to-indigo-600 text-white">
+                      <div className="whitespace-pre-wrap text-sm sm:text-base font-medium">{message.content}</div>
+                      <div className="text-xs opacity-60 mt-3 font-medium">
+                        {message.timestamp.toLocaleTimeString()}
                       </div>
                     </div>
-                  )}
-                  <div className="text-xs opacity-60 mt-3 font-medium">
-                    {message.timestamp.toLocaleTimeString()}
+                  </div>
+                )}
+
+                {/* Show sources FIRST if this is AI message and web sources are available */}
+                {message.type === 'ai' && index === messages.length - 1 && isLoading && streamingSources.web_sources.length > 0 && (
+                  <div className="flex justify-start mb-3 mt-4">
+                    <div className="bg-white border border-gray-200 shadow-sm rounded-xl p-3 max-w-3xl">
+                      <div className="flex items-center space-x-2 text-xs font-medium text-gray-600 mb-2">
+                        <div className="animate-spin rounded-full h-3 w-3 border-2 border-blue-600 border-t-transparent"></div>
+                        <span>Searching {streamingSources.web_sources.length} web sources</span>
+                      </div>
+
+                      {/* Web Sources only in horizontal scroll */}
+                      <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-thin">
+                        {streamingSources.web_sources.map((source, idx) => {
+                          const domain = source.url ? new URL(source.url).hostname.replace('www.', '') : '';
+
+                          return (
+                            <a
+                              key={`web-${idx}`}
+                              href={source.url || '#'}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex-shrink-0 w-40 p-2 border border-gray-200 rounded-lg hover:border-blue-400 hover:shadow-sm transition-all group bg-white"
+                            >
+                              <div className="flex items-center space-x-2 mb-1">
+                                <div className="flex-shrink-0 w-5 h-5 bg-blue-100 text-blue-600 rounded flex items-center justify-center text-xs font-bold">
+                                  {idx + 1}
+                                </div>
+                                <span className="text-xs text-gray-400">🌐</span>
+                              </div>
+                              <p className="text-xs font-medium text-gray-800 group-hover:text-blue-600 line-clamp-2 leading-tight">
+                                {source.title || 'Web Page'}
+                              </p>
+                              <p className="text-xs text-gray-400 mt-1 truncate">
+                                {domain}
+                              </p>
+                            </a>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* AI Message - AFTER sources */}
+                {message.type === 'ai' && message.content && (
+                <div className="flex justify-start animate-in slide-in-from-bottom">
+                  <div className="max-w-[85%] sm:max-w-3xl p-4 sm:p-5 rounded-2xl shadow-md bg-white border-2 border-gray-100">
+                    {renderMessageContent(message.content)}
+                    {message.citations && (
+                      <div className="mt-4 pt-4 border-t border-gray-200">
+                        <div className="text-xs sm:text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                          <span className="mr-2">📚</span> Sources:
+                        </div>
+                        {message.citations.map((citation, i) => (
+                          <div key={i} className="text-xs sm:text-sm mb-2 pl-4 border-l-2 border-blue-200">
+                            📄 {renderCitationContent(citation)}
+                          </div>
+                        ))}
+                        <div className="mt-3 flex items-center space-x-2">
+                          <div className="flex-1 bg-gray-200 rounded-full h-2">
+                            <div
+                              className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full"
+                              style={{width: `${message.confidence}%`}}
+                            ></div>
+                          </div>
+                          <span className="text-xs font-semibold text-gray-600">{message.confidence}%</span>
+                        </div>
+                      </div>
+                    )}
+                    <div className="text-xs opacity-60 mt-3 font-medium">
+                      {message.timestamp.toLocaleTimeString()}
+                    </div>
                   </div>
                 </div>
+                )}
               </div>
             ))}
 
-            {isLoading && (
+            {/* Show searching indicator when sources haven't arrived yet */}
+            {isLoading && messages.length > 0 && messages[messages.length - 1].type === 'ai' && streamingSources.db_sources.length === 0 && streamingSources.web_sources.length === 0 && (
               <div className="flex justify-start animate-pulse">
                 <div className="bg-white border-2 border-gray-100 shadow-md rounded-2xl p-4 sm:p-5">
                   <div className="flex items-center space-x-3">
                     <div className="animate-spin rounded-full h-5 w-5 border-2 border-blue-600 border-t-transparent"></div>
-                    <span className="text-sm font-medium text-gray-600">AI is thinking...</span>
+                    <span className="text-sm font-medium text-gray-600">Searching sources...</span>
                   </div>
                 </div>
               </div>
