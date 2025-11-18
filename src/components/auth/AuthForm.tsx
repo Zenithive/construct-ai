@@ -217,7 +217,7 @@ const AuthForm: React.FC<AuthFormProps> = ({
               <ReCAPTCHA
                 className=""
                 ref={recaptchaRef}
-                sitekey="6Ld9UQssAAAAANQ8NR4XY4z0K0QouhJL0CRD2Q1z"
+                sitekey="6LeTVhAsAAAAAD8xKKWWiZsDI15PDn2gyT30Vxzm"
                 onChange={() => setRecaptchaError("")}
                 />
           {recaptchaError && (
