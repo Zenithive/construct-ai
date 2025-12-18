@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Search, ArrowDown, Menu, Upload as UploadIcon, Paperclip } from 'lucide-react';
+import { Send, Search, ArrowDown, Menu, Upload as Paperclip } from 'lucide-react';
 import supabase from '../supaBase/supabaseClient';
 import UploadComponent from './Upload';
 
