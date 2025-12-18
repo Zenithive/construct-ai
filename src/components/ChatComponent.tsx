@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Search, ArrowDown, Menu } from 'lucide-react';
+import { Send, Search, ArrowDown, Menu, Upload as UploadIcon, Paperclip } from 'lucide-react';
 import supabase from '../supaBase/supabaseClient';
+import UploadComponent from './Upload';
 
 // Types
 type Message = {
@@ -26,6 +27,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
   const isProcessingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
   const [streamingSources, setStreamingSources] = useState<{db_sources: any[], web_sources: any[]}>({db_sources: [], web_sources: []});
+  const [showUploadModal, setShowUploadModal] = useState(false);
 
   const sampleQuestions = [
     "What are the fire safety requirements for high-rise buildings?",
@@ -845,6 +847,13 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
             className="flex-1 border-2 border-gray-300 rounded-xl px-4 py-3 text-sm sm:text-base focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500 shadow-sm"
           />
           <button
+            onClick={() => setShowUploadModal(true)}
+            className="bg-gray-100 text-gray-700 px-5 py-3 rounded-xl hover:bg-gray-200 flex-shrink-0 shadow-md transition-all duration-200 hover:shadow-lg"
+            title="Upload documents"
+          >
+            <Paperclip className="h-5 w-5" />
+          </button>
+          <button
             onClick={handleSendMessage}
             disabled={!inputMessage.trim() || isLoading}
             className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-5 py-3 rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:opacity-50 disabled:cursor-not-allowed flex-shrink-0 shadow-md transition-all duration-200 hover:shadow-lg"
@@ -853,6 +862,23 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
           </button>
         </div>
       </div>
+
+      {/* Upload Modal */}
+      {showUploadModal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto relative">
+            <button
+              onClick={() => setShowUploadModal(false)}
+              className="absolute top-4 right-4 text-gray-500 hover:text-gray-700 z-10"
+            >
+              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+            <UploadComponent />
+          </div>
+        </div>
+      )}
     </div>
   );
 };

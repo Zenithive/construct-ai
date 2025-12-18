@@ -163,7 +163,7 @@ const UploadComponent = () => {
       const formData = new FormData();
       formData.append("file", file, file.name);
 
-      const response = await axios.post("https://api.constructionai.chat/api/v1/documents/upload", formData);
+      const response = await axios.post("https://api.constructionai.chat/api/v1/company/documents/upload", formData);
 
       const data = response.data;
 
