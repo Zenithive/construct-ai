@@ -55,7 +55,9 @@ const Register = () => {
         email,
         password,
         options: {
-          data: { firstName, lastName, recaptchaToken },
+          data: { firstName, lastName },
+          captchaToken: recaptchaToken,
+          emailRedirectTo: `${window.location.origin}/dashboard`
         },
       });
 

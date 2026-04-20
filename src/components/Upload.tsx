@@ -163,7 +163,7 @@ const UploadComponent = () => {
       const formData = new FormData();
       formData.append("file", file, file.name);
 
-      const response = await axios.post("https://api.constructionai.chat/api/v1/company/documents/upload", formData);
+      const response = await axios.post("https://construction-ai-new-production.up.railway.app/api/v1/company/documents/upload", formData);
 
       const data = response.data;
 
@@ -214,11 +214,10 @@ const UploadComponent = () => {
             <button
               onClick={() => fileInputRef.current?.click()}
               disabled={isUploading}
-              className={`px-4 py-2 sm:px-6 sm:py-3 rounded-lg mb-3 sm:mb-4 text-sm sm:text-base font-medium inline-flex items-center space-x-2 ${
-                isUploading
+              className={`px-4 py-2 sm:px-6 sm:py-3 rounded-lg mb-3 sm:mb-4 text-sm sm:text-base font-medium inline-flex items-center space-x-2 ${isUploading
                   ? 'bg-gray-400 cursor-not-allowed'
                   : 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
-              } text-white`}
+                } text-white`}
             >
               {isUploading && <Loader2 className="h-4 w-4 animate-spin" />}
               <span>{isUploading ? 'Uploading...' : 'Choose Files'}</span>

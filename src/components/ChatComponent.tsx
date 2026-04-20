@@ -26,7 +26,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isProcessingRef = useRef(false);
   const abortControllerRef = useRef<AbortController | null>(null);
-  const [streamingSources, setStreamingSources] = useState<{db_sources: any[], web_sources: any[]}>({db_sources: [], web_sources: []});
+  const [streamingSources, setStreamingSources] = useState<{ db_sources: any[], web_sources: any[] }>({ db_sources: [], web_sources: [] });
   const [showUploadModal, setShowUploadModal] = useState(false);
 
   const sampleQuestions = [
@@ -113,12 +113,12 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
 
       const bodyHtml = `<tbody class="bg-white divide-y divide-gray-200">
         ${bodyRowsArray.map((row, index) => {
-          const cells = row.split('|').filter(cell => cell.trim()).map(cell => cell.trim());
-          const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
-          return `<tr class="${bgClass} hover:bg-blue-50 transition-colors">
+        const cells = row.split('|').filter(cell => cell.trim()).map(cell => cell.trim());
+        const bgClass = index % 2 === 0 ? 'bg-white' : 'bg-gray-50';
+        return `<tr class="${bgClass} hover:bg-blue-50 transition-colors">
             ${cells.map(cell => `<td class="border border-gray-200 px-4 py-3 text-sm text-gray-800 break-words">${cell}</td>`).join('')}
           </tr>`;
-        }).join('')}
+      }).join('')}
       </tbody>`;
 
       return `<div class="my-6 overflow-x-auto rounded-lg shadow-md border border-gray-200">
@@ -295,7 +295,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
     };
 
     loadChatHistory();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -414,7 +414,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
     const query = inputMessage;
     setInputMessage('');
     setIsLoading(true);
-    setStreamingSources({db_sources: [], web_sources: []}); // Reset sources
+    setStreamingSources({ db_sources: [], web_sources: [] }); // Reset sources
 
     try {
       // Create initial AI message that will be updated with streaming content
@@ -435,7 +435,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
         include_sources: true
       };
 
-      const response = await fetch('https://api.constructionai.chat/api/v1/query/stream', {
+      const response = await fetch('https://construction-ai-new-production.up.railway.app/api/v1/query/stream', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -600,7 +600,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
       }
     } finally {
       setIsLoading(false);
-      setStreamingSources({db_sources: [], web_sources: []}); // Clear sources after streaming completes
+      setStreamingSources({ db_sources: [], web_sources: [] }); // Clear sources after streaming completes
       isProcessingRef.current = false;
       abortControllerRef.current = null; // Clean up abort controller
     }
@@ -771,35 +771,35 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
 
                 {/* AI Message - AFTER sources */}
                 {message.type === 'ai' && message.content && (
-                <div className="flex justify-start animate-in slide-in-from-bottom">
-                  <div className="max-w-[85%] sm:max-w-3xl p-4 sm:p-5 rounded-2xl shadow-md bg-white border-2 border-gray-100">
-                    {renderMessageContent(message.content)}
-                    {message.citations && (
-                      <div className="mt-4 pt-4 border-t border-gray-200">
-                        <div className="text-xs sm:text-sm font-semibold text-gray-700 mb-3 flex items-center">
-                          <span className="mr-2">📚</span> Sources:
-                        </div>
-                        {message.citations.map((citation, i) => (
-                          <div key={i} className="text-xs sm:text-sm mb-2 pl-4 border-l-2 border-blue-200">
-                            📄 {renderCitationContent(citation)}
+                  <div className="flex justify-start animate-in slide-in-from-bottom">
+                    <div className="max-w-[85%] sm:max-w-3xl p-4 sm:p-5 rounded-2xl shadow-md bg-white border-2 border-gray-100">
+                      {renderMessageContent(message.content)}
+                      {message.citations && (
+                        <div className="mt-4 pt-4 border-t border-gray-200">
+                          <div className="text-xs sm:text-sm font-semibold text-gray-700 mb-3 flex items-center">
+                            <span className="mr-2">📚</span> Sources:
                           </div>
-                        ))}
-                        <div className="mt-3 flex items-center space-x-2">
-                          <div className="flex-1 bg-gray-200 rounded-full h-2">
-                            <div
-                              className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full"
-                              style={{width: `${message.confidence}%`}}
-                            ></div>
+                          {message.citations.map((citation, i) => (
+                            <div key={i} className="text-xs sm:text-sm mb-2 pl-4 border-l-2 border-blue-200">
+                              📄 {renderCitationContent(citation)}
+                            </div>
+                          ))}
+                          <div className="mt-3 flex items-center space-x-2">
+                            <div className="flex-1 bg-gray-200 rounded-full h-2">
+                              <div
+                                className="bg-gradient-to-r from-blue-500 to-indigo-600 h-2 rounded-full"
+                                style={{ width: `${message.confidence}%` }}
+                              ></div>
+                            </div>
+                            <span className="text-xs font-semibold text-gray-600">{message.confidence}%</span>
                           </div>
-                          <span className="text-xs font-semibold text-gray-600">{message.confidence}%</span>
                         </div>
+                      )}
+                      <div className="text-xs opacity-60 mt-3 font-medium">
+                        {message.timestamp.toLocaleTimeString()}
                       </div>
-                    )}
-                    <div className="text-xs opacity-60 mt-3 font-medium">
-                      {message.timestamp.toLocaleTimeString()}
                     </div>
                   </div>
-                </div>
                 )}
               </div>
             ))}
