@@ -2,7 +2,7 @@
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthForm from './AuthForm';
-import supabase  from '../../supaBase/supabaseClient';
+import { authApi, setToken, setUser, isAuthenticated } from '../../api/apiClient';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -12,31 +12,17 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
+  // If already logged in, redirect to dashboard
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) {
-          console.error('Session check error:', error);
-          return;
-        }
-        if (session) {
-          navigate('/dashboard');
-        }
-      } catch (err) {
-        console.error('Session check failed:', err);
-        // Silently fail - user can still attempt to login
-      }
-    };
-    checkSession();
+    if (isAuthenticated()) {
+      navigate('/dashboard');
+    }
   }, [navigate]);
 
   // Auto-dismiss error after 5 seconds
   useEffect(() => {
     if (error) {
-      const timer = setTimeout(() => {
-        setError(null);
-      }, 5000);
+      const timer = setTimeout(() => setError(null), 5000);
       return () => clearTimeout(timer);
     }
   }, [error]);
@@ -44,9 +30,7 @@ const Login = () => {
   // Auto-dismiss message after 5 seconds
   useEffect(() => {
     if (message) {
-      const timer = setTimeout(() => {
-        setMessage(null);
-      }, 5000);
+      const timer = setTimeout(() => setMessage(null), 5000);
       return () => clearTimeout(timer);
     }
   }, [message]);
@@ -58,66 +42,15 @@ const Login = () => {
     setIsLoading(true);
 
     try {
-      // Note: recaptchaToken will be null for login since showCaptcha=false
-      // You can enable it later if needed by setting showCaptcha={true} in the AuthForm
-
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-      if (error) {
-        if (error.message === 'Email not confirmed') {
-          setError('Please confirm your email address to log in. Check your inbox or spam folder.');
-        } else {
-          setError(error.message);
-        }
-        setIsLoading(false);
-        return;
-      }
-
+      const data = await authApi.login(email, password);
+      setToken(data.token);
+      setUser(data.user);
       setMessage('Login successful!');
       setIsLoading(false);
       navigate('/dashboard');
     } catch (err: any) {
-      setError('An unexpected error occurred. Please try again.');
+      setError(err.message || 'An unexpected error occurred. Please try again.');
       setIsLoading(false);
-    }
-  };
-
-  const handleResendConfirmation = async () => {
-    try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`
-        }
-      });
-      if (error) {
-        setError(error.message);
-        return;
-      }
-      setMessage('Confirmation email resent! Check your inbox or spam folder.');
-    } catch (err: any) {
-      setError('Failed to resend confirmation email. Please try again.');
-    }
-  };
-
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setError('Please enter your email address to reset your password.');
-      return;
-    }
-    try {
-      const redirectUrl = `${window.location.origin}/reset-password`;
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectUrl,
-      });
-      if (error) {
-        setError(error.message);
-        return;
-      }
-      setMessage('Password reset email sent! Check your inbox or spam folder.');
-    } catch (err: any) {
-      setError('Failed to send password reset email. Please try again.');
     }
   };
 
@@ -130,14 +63,6 @@ const Login = () => {
         {error && (
           <div className="bg-red-100 text-red-700 p-3 rounded-md mb-4 text-sm animate-fade-in">
             {error}
-            {error === 'Please confirm your email address to log in. Check your inbox or spam folder.' && (
-              <button
-                onClick={handleResendConfirmation}
-                className="ml-2 text-blue-600 underline"
-              >
-                Resend Confirmation Email
-              </button>
-            )}
           </div>
         )}
         {message && (
@@ -152,20 +77,11 @@ const Login = () => {
           setPassword={setPassword}
           onSubmit={handleLogin}
           buttonText="Login"
-          showCaptcha={false} // captcha hidden
+          showCaptcha={false}
           isLoading={isLoading}
         />
         <p className="mt-4 text-center text-sm text-gray-600">
-          Forgot your password?{' '}
-          <button
-            onClick={handleForgotPassword}
-            className="text-primary underline"
-          >
-            Forgot Password
-          </button>
-        </p>
-        <p className="mt-4 text-center text-sm text-gray-600">
-          Don’t have an account?{' '}
+          Don't have an account?{' '}
           <Link to="/register" className="text-primary underline">
             Sign Up
           </Link>

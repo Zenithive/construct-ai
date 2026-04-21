@@ -1,9 +1,13 @@
 // components/auth/ResetPassword.tsx
+// Note: Password reset via email requires a backend email service (e.g. nodemailer).
+// This page handles the case where a user wants to change their password while logged in.
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import supabase  from '../../supaBase/supabaseClient';
+import { useNavigate } from 'react-router-dom';
 import { Link } from 'react-router-dom';
 import { Eye, EyeOff } from 'lucide-react';
+import { getToken, removeToken, removeUser } from '../../api/apiClient';
+
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const ResetPassword = () => {
   const [newPassword, setNewPassword] = useState('');
@@ -11,43 +15,11 @@ const ResetPassword = () => {
   const [message, setMessage] = useState<string | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const navigate = useNavigate();
-  const location = useLocation();
-
-  useEffect(() => {
-    // Verify that user has a valid password recovery session
-    // With PKCE flow, Supabase processes the token and creates a session automatically
-    const verifySession = async () => {
-      // Small delay to allow Supabase to process the token from URL
-      await new Promise(resolve => setTimeout(resolve, 100));
-
-      const { data: { session }, error } = await supabase.auth.getSession();
-
-      if (error) {
-        setError('Failed to verify reset session. Please request a new password reset link.');
-        return;
-      }
-
-      // Only show error if no session exists after giving time for token processing
-      if (!session) {
-        setError('No active reset session found. Please click the reset link from your email.');
-      } else {
-        // Clean up the URL by removing tokens from hash for security
-        // This prevents the access token from being visible in the URL
-        if (window.location.hash) {
-          window.history.replaceState(null, '', window.location.pathname);
-        }
-      }
-    };
-
-    verifySession();
-  }, [location]);
 
   // Auto-dismiss error after 5 seconds
   useEffect(() => {
     if (error) {
-      const timer = setTimeout(() => {
-        setError(null);
-      }, 5000);
+      const timer = setTimeout(() => setError(null), 5000);
       return () => clearTimeout(timer);
     }
   }, [error]);
@@ -55,9 +27,7 @@ const ResetPassword = () => {
   // Auto-dismiss message after 5 seconds
   useEffect(() => {
     if (message) {
-      const timer = setTimeout(() => {
-        setMessage(null);
-      }, 5000);
+      const timer = setTimeout(() => setMessage(null), 5000);
       return () => clearTimeout(timer);
     }
   }, [message]);
@@ -73,13 +43,27 @@ const ResetPassword = () => {
     }
 
     try {
-      const { error } = await supabase.auth.updateUser({ password: newPassword });
-      if (error) {
-        setError(error.message);
+      const token = getToken();
+      const res = await fetch(`${BASE_URL}/api/auth/reset-password`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({ newPassword }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Failed to update password.');
         return;
       }
-      setMessage('Password updated successfully! You can now log in with your new password.');
-      setTimeout(() => navigate('/'), 2000); // Redirect to login after 2 seconds
+
+      setMessage('Password updated successfully! Please log in again.');
+      removeToken();
+      removeUser();
+      setTimeout(() => navigate('/'), 2000);
     } catch (err: any) {
       setError('An unexpected error occurred. Please try again.');
     }
@@ -104,7 +88,7 @@ const ResetPassword = () => {
         <form onSubmit={handleResetPassword} className="space-y-4">
           <div className="relative">
             <input
-              type={showPassword ? "text" : "password"}
+              type={showPassword ? 'text' : 'password'}
               placeholder="Enter new password (minimum 6 characters)"
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
@@ -116,13 +100,9 @@ const ResetPassword = () => {
               type="button"
               onClick={() => setShowPassword(!showPassword)}
               className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500 hover:text-gray-700 focus:outline-none"
-              aria-label={showPassword ? "Hide password" : "Show password"}
+              aria-label={showPassword ? 'Hide password' : 'Show password'}
             >
-              {showPassword ? (
-                <EyeOff className="h-5 w-5" />
-              ) : (
-                <Eye className="h-5 w-5" />
-              )}
+              {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
             </button>
           </div>
           <button

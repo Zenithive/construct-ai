@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Bell, AlertCircle, Clock, RefreshCw } from 'lucide-react';
-import supabase from '../supaBase/supabaseClient';
+import { getToken, getUser } from '../api/apiClient';
+
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 type Alert = {
   id: string;
@@ -36,53 +38,37 @@ const UpdatesComponent = ({ selectedRegion, selectedCategory, regions, categorie
       }
       setError(null);
 
-      // Get the current user
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      
-      if (userError) {
-        setError('Authentication error. Please log in again.');
-        return;
-      }
-
-      if (!user) {
+      const token = getToken();
+      if (!token) {
         setError('You must be logged in to view alerts.');
         return;
       }
 
+      const res = await fetch(`${BASE_URL}/api/alerts`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-      // Fetch alerts for the specific user
-      const { data, error: fetchError } = await supabase
-        .from('alerts')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false });
-
-      if (fetchError) {
-        setError(`Error fetching alerts: ${fetchError.message}`);
+      if (!res.ok) {
+        setError('Failed to fetch alerts.');
         return;
       }
 
-      // Format the alerts data - handle missing columns gracefully
-      const formattedAlerts = (data || []).map((alert) => {
-        return {
-          id: alert.id,
-          title: alert.title || 'No title',
-          region: alert.region || 'Unknown region',
-          category: alert.category || 'General',
-          date: new Date(alert.date || alert.created_at).toLocaleString('en-US', {
-            year: 'numeric',
-            month: 'short',
-            day: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit',
-          }),
-          severity: alert.severity || 'medium',
-          summary: alert.summary || 'No summary available',
-        };
-      });
+      const data = await res.json();
+
+      const formattedAlerts = (data.alerts || []).map((alert: any) => ({
+        id: alert.id,
+        title: alert.title || 'No title',
+        region: alert.region || 'Unknown region',
+        category: alert.category || 'General',
+        date: new Date(alert.date || alert.created_at).toLocaleString('en-US', {
+          year: 'numeric', month: 'short', day: 'numeric',
+          hour: '2-digit', minute: '2-digit',
+        }),
+        severity: alert.severity || 'medium',
+        summary: alert.summary || 'No summary available',
+      }));
 
       setAlerts(formattedAlerts);
-      
     } catch (err: any) {
       setError('Failed to fetch alerts. Please try again.');
     } finally {

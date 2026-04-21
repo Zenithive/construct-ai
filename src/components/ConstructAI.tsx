@@ -8,7 +8,7 @@ import ChatWithSidebar from './ChatWithSidebar';
 import UpdatesComponent from './Updates';
 import UploadComponent from './Upload';
 import ChecklistComponent from './CheckList';
-import supabase from '../supaBase/supabaseClient';
+import { getUser, removeToken, removeUser } from '../api/apiClient';
 
 const ConstructAI = () => {
   const navigate = useNavigate();
@@ -24,34 +24,15 @@ const ConstructAI = () => {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    const fetchUserData = async () => {
-      const { data, error } = await supabase.auth.getUser();
-      if (error) {
-        return;
-      }
-
-      const user = data.user;
-      if (user) {
-        // Role check
-        setRole(user.email === 'rajvikamani2211@gmail.com' ? 'admin' : 'user');
-
-        // ✅ Get name from metadata (stored during signup)
-        const meta = user.user_metadata;
-
-        if (meta?.firstName || meta?.lastName) {
-          const fullNameValue = `${meta.firstName || ''} ${meta.lastName || ''}`.trim();
-          const firstNameValue = meta.firstName || 'User';
-          setFullName(fullNameValue);
-          setFirstName(firstNameValue);
-        } else {
-          const emailName = user.email?.split('@')[0] || 'User';
-          setFullName(user.email || 'User'); // fallback
-          setFirstName(emailName);
-        }
-      }
-    };
-
-    fetchUserData();
+    const user = getUser();
+    if (user) {
+      setRole(user.email === 'rajvikamani2211@gmail.com' ? 'admin' : 'user');
+      const fullNameValue = `${user.firstName || ''} ${user.lastName || ''}`.trim();
+      setFullName(fullNameValue || user.email || 'User');
+      setFirstName(user.firstName || user.email?.split('@')[0] || 'User');
+    } else {
+      setRole('user');
+    }
   }, []);
 
   useEffect(() => {
@@ -164,14 +145,9 @@ const ConstructAI = () => {
                       <button
                         onClick={async () => {
                           setShowProfileDropdown(false);
-                          try {
-                            const { error } = await supabase.auth.signOut();
-                            if (error) {
-                              return;
-                            }
-                            navigate('/');
-                          } catch (err: any) {
-                          }
+                          removeToken();
+                          removeUser();
+                          navigate('/');
                         }}
                         className="w-full text-left px-4 py-3 text-sm text-red-600 hover:bg-red-50 flex items-center space-x-2 transition-colors"
                       >
@@ -225,14 +201,9 @@ const ConstructAI = () => {
             {/* Mobile Logout */}
             <button
               onClick={async () => {
-                try {
-                  const { error } = await supabase.auth.signOut();
-                  if (error) {
-                    return;
-                  }
-                  navigate('/');
-                } catch (err: any) {
-                }
+                removeToken();
+                removeUser();
+                navigate('/');
               }}
               className="w-full flex items-center space-x-3 px-4 py-3 rounded-xl text-left text-red-600 hover:bg-red-50 transition-colors mt-2"
             >

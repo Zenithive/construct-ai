@@ -1,8 +1,9 @@
-
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, FileText, Download, Loader2 } from 'lucide-react';
-import supabase from '../supaBase/supabaseClient';
+import { uploadApi, getToken } from '../api/apiClient';
 import axios from "axios";
+
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 type UploadedFile = {
   id: string;
   name: string;
@@ -18,31 +19,10 @@ const UploadComponent = () => {
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch uploaded files from Supabase Storage for the authenticated user
+  // Fetch uploaded files from backend for the authenticated user
   const fetchFiles = async () => {
-    try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        setError('You must be logged in to view files.');
-        return;
-      }
-      const userId = user.id;
-      const { data, error } = await supabase.storage.from('files').list(`users/${userId}`);
-      if (error) {
-        setError(error.message);
-        return;
-      }
-      const files = data.map((file) => ({
-        id: `users/${userId}/${file.name}`,
-        name: file.name,
-        size: file.metadata?.size || 0,
-        type: file.metadata?.mimetype || 'application/octet-stream',
-        uploadedAt: new Date(file.created_at || Date.now()),
-      }));
-      setUploadedFiles(files);
-    } catch (err: any) {
-      setError('Failed to fetch files. Please try again.');
-    }
+    // File listing not yet implemented in backend — clear list on load
+    setUploadedFiles([]);
   };
 
   useEffect(() => {
@@ -69,14 +49,6 @@ const UploadComponent = () => {
     setMessage(null);
     setIsUploading(true);
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      setError('You must be logged in to upload files.');
-      setIsUploading(false);
-      return;
-    }
-    const userId = user.id;
-
     const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
     const newFiles: UploadedFile[] = [];
 
@@ -89,34 +61,21 @@ const UploadComponent = () => {
       }
 
       try {
-        const fileName = `users/${userId}/doc_${Date.now()}_${f.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from('files')
-          .upload(fileName, f, {
-            contentType: f.type,
-            upsert: false,
-          });
+        // Upload to our backend
+        const result = await uploadApi.uploadFile(f);
 
-        if (uploadError) {
-          setError(`Failed to upload ${f.name}: ${uploadError.message}`);
-          setIsUploading(false);
-          return;
-        }
-
-        // Also send to external API for processing
-        const apiSuccess = await sendFileToAPI(f);
-        if (!apiSuccess) {
-        }
+        // Also send to external AI API for processing
+        await sendFileToAPI(f);
 
         newFiles.push({
-          id: fileName,
+          id: result.file.path,
           name: f.name,
           size: f.size,
           type: f.type,
           uploadedAt: new Date(),
         });
       } catch (err: any) {
-        setError(`Failed to upload ${f.name}. Please try again.`);
+        setError(`Failed to upload ${f.name}: ${err.message}`);
         setIsUploading(false);
         return;
       }
@@ -125,24 +84,23 @@ const UploadComponent = () => {
     setUploadedFiles((prev) => [...prev, ...newFiles]);
     setMessage('Files uploaded successfully!');
     setIsUploading(false);
-    fetchFiles();
   };
 
-  const handleDownload = async (fileName: string) => {
+  const handleDownload = async (filePath: string, fileName: string) => {
     try {
-      const { data, error } = await supabase.storage
-        .from('files')
-        .download(fileName);
-
-      if (error) {
-        setError(error.message);
+      const token = getToken();
+      const res = await fetch(`${BASE_URL}${filePath}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      if (!res.ok) {
+        setError('Failed to download file.');
         return;
       }
-
-      const url = window.URL.createObjectURL(data);
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
-      link.download = fileName.split('/').pop()!.split('_').slice(1).join('_');
+      link.download = fileName;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -239,7 +197,7 @@ const UploadComponent = () => {
                       </div>
                     </div>
                     <button
-                      onClick={() => handleDownload(file.id)}
+                      onClick={() => handleDownload(file.id, file.name)}
                       className="text-blue-600 hover:text-blue-800 flex-shrink-0"
                     >
                       <Download className="h-4 w-4 sm:h-5 sm:w-5" />

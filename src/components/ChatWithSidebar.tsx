@@ -1,134 +1,77 @@
 import { useState, useEffect, useRef } from 'react';
 import ChatSidebar from './ChatSidebar';
 import ChatComponent from './ChatComponent';
-import supabase from '../supaBase/supabaseClient';
+import { chatApi, getUser } from '../api/apiClient';
 
 const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories }) => {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [userId, setUserId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const sidebarRef = useRef<any>(null);
   const isCreatingSession = useRef(false);
 
   useEffect(() => {
-    initializeUser();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    initializeSession();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  const initializeUser = async () => {
-    const { data: { user } } = await supabase.auth.getUser();
-    if (user) {
-      setUserId(user.id);
-      // Load or create default session
-      await loadOrCreateSession(user.id);
+  const initializeSession = async () => {
+    try {
+      const data = await chatApi.getSessions();
+      const sessions = data.sessions || [];
+
+      if (sessions.length > 0) {
+        // Load the most recent session
+        setCurrentSessionId(sessions[0].id);
+      } else {
+        // No sessions yet — create one
+        await createNewSession();
+      }
+    } catch (err) {
+      console.error('Failed to initialize session:', err);
     }
   };
 
-  const loadOrCreateSession = async (userId: string) => {
-
-    // Try to load the most recent session
-    const { data, error } = await supabase
-      .from('chat_sessions')
-      .select('*')
-      .eq('user_id', userId)
-      .order('updated_at', { ascending: false })
-      .limit(1);
-
-
-    if (error) {
-      // If table doesn't exist or query fails, create a temporary session ID
-      setCurrentSessionId(`temp-${userId}-${Date.now()}`);
-      return;
-    }
-
-    if (data && data.length > 0) {
-      setCurrentSessionId(data[0].id);
-    } else {
-      // Create a new session - pass userId directly since state might not be updated yet
-      await createNewSession(userId);
-    }
-  };
-
-  const createNewSession = async (userIdParam: string) => {
-    const userIdToUse = userIdParam || userId;
-
-    if (!userIdToUse) {
-      return;
-    }
-
-    // Prevent duplicate session creation
-    if (isCreatingSession.current) {
-      return;
-    }
-
+  const createNewSession = async () => {
+    if (isCreatingSession.current) return;
     isCreatingSession.current = true;
 
     try {
-      const { data, error } = await supabase
-        .from('chat_sessions')
-        .insert({
-          user_id: userIdToUse,
-          title: 'New Conversation',
-          message_count: 0
-        })
-        .select()
-        .single();
-
-      if (error) {
-        // If table doesn't exist or insert fails, create a temporary session ID
-        setCurrentSessionId(`temp-${userIdToUse}-${Date.now()}`);
-        isCreatingSession.current = false;
-        return;
-      }
-
-      setCurrentSessionId(data.id);
-      // Refresh sidebar to show new session
+      const data = await chatApi.createSession('New Conversation');
+      setCurrentSessionId(data.session.id);
       if (sidebarRef.current?.refreshSessions) {
         sidebarRef.current.refreshSessions();
       }
-      isCreatingSession.current = false;
     } catch (err) {
-      // Create temporary session as last resort
-      setCurrentSessionId(`temp-${userIdToUse}-${Date.now()}`);
+      console.error('Failed to create session:', err);
+    } finally {
       isCreatingSession.current = false;
     }
   };
 
   const handleNewChat = async () => {
-    // Use the createNewSession function with the current userId from state
-    await createNewSession(userId || '');
+    await createNewSession();
   };
 
   const handleMessageSent = () => {
-    // Refresh sidebar when a message is sent (updates title and message count)
     if (sidebarRef.current?.refreshSessions) {
       sidebarRef.current.refreshSessions();
     }
   };
 
-  const handleSelectSession = async (sessionId: string) => {
+  const handleSelectSession = (sessionId: string) => {
     setCurrentSessionId(sessionId);
   };
 
   const handleDeleteSession = async (sessionId: string) => {
     try {
-      // Delete all messages in the session
-      await supabase
-        .from('chat_messages')
-        .delete()
-        .eq('session_id', sessionId);
-
-      // Delete the session
-      await supabase
-        .from('chat_sessions')
-        .delete()
-        .eq('id', sessionId);
+      await chatApi.deleteSession(sessionId);
 
       // If deleting current session, create a new one
       if (sessionId === currentSessionId) {
         await handleNewChat();
       }
     } catch (err) {
+      console.error('Failed to delete session:', err);
     }
   };
 
@@ -157,7 +100,7 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
             onMessageSent={handleMessageSent}
             onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
             isSidebarOpen={isSidebarOpen}
-            key={currentSessionId} // Force re-render when session changes
+            key={currentSessionId}
           />
         ) : (
           <div className="flex items-center justify-center h-full">

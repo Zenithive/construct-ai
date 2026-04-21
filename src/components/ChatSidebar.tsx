@@ -1,6 +1,6 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
 import { MessageSquare, Plus, Trash2 } from 'lucide-react';
-import supabase from '../supaBase/supabaseClient';
+import { chatApi, getUser } from '../api/apiClient';
 
 type ChatSession = {
   id: string;
@@ -34,88 +34,28 @@ const ChatSidebar = forwardRef(({ currentSessionId, onNewChat, onSelectSession, 
     loadUserInfo();
   }, []);
 
-  const loadUserInfo = async () => {
-    try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        return;
-      }
-
-
-      // First, try to get firstName from user metadata (where it's being stored during signup)
-      if (user.user_metadata?.firstName) {
-        setUserFirstName(user.user_metadata.firstName);
-        return;
-      }
-
-      // Fallback: Try to fetch from users table in Supabase
-      const { data: userData, error: dbError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-
-      if (dbError) {
-        // Fallback to email username if database query fails
-        if (user.email) {
-          const emailUsername = user.email.split('@')[0];
-          setUserFirstName(emailUsername.charAt(0).toUpperCase() + emailUsername.slice(1));
-        }
-        return;
-      }
-
-
-      if (userData?.firstName) {
-        setUserFirstName(userData.firstName);
-      } else {
-        if (user.email) {
-          const emailUsername = user.email.split('@')[0];
-          setUserFirstName(emailUsername.charAt(0).toUpperCase() + emailUsername.slice(1));
-        }
-      }
-    } catch (err) {
+  const loadUserInfo = () => {
+    const user = getUser();
+    if (user?.firstName) {
+      setUserFirstName(user.firstName);
+    } else if (user?.email) {
+      const emailUsername = user.email.split('@')[0];
+      setUserFirstName(emailUsername.charAt(0).toUpperCase() + emailUsername.slice(1));
     }
   };
 
   const loadChatSessions = async () => {
     try {
       setIsLoading(true);
-
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        return;
-      }
-
-      // Load chat sessions
-      const { data: sessionsData, error: sessionsError } = await supabase
-        .from('chat_sessions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false });
-
-      if (sessionsError) {
-        return;
-      }
-
-      // Load message counts for each session
-      const sessionsWithCounts = await Promise.all(
-        (sessionsData || []).map(async (session) => {
-          const { count, error: countError } = await supabase
-            .from('chat_messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('session_id', session.id);
-
-          if (countError) {
-            return { ...session, message_count: 0 };
-          }
-
-          return { ...session, message_count: count || 0 };
-        })
-      );
-
-      setSessions(sessionsWithCounts);
+      const data = await chatApi.getSessions();
+      // Add message_count placeholder (not returned by API, set to 0)
+      const sessionsWithCount = (data.sessions || []).map((s: any) => ({
+        ...s,
+        message_count: 0,
+      }));
+      setSessions(sessionsWithCount);
     } catch (err) {
+      console.error('Failed to load sessions:', err);
     } finally {
       setIsLoading(false);
     }
@@ -129,8 +69,6 @@ const ChatSidebar = forwardRef(({ currentSessionId, onNewChat, onSelectSession, 
     }
 
     onDeleteSession(sessionId);
-
-    // Remove from local state
     setSessions(sessions.filter(s => s.id !== sessionId));
   };
 
@@ -161,10 +99,8 @@ const ChatSidebar = forwardRef(({ currentSessionId, onNewChat, onSelectSession, 
         {/* New Chat Button */}
         <div className="p-4 border-b border-gray-200">
           <button
-            onClick={() => {
-              onNewChat();
-            }}
-            className="w-full flex items-center space-x-3 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg group"
+            onClick={onNewChat}
+            className="w-full flex items-center space-x-3 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg"
           >
             <Plus className="h-5 w-5" />
             <span className="font-medium">New Chat</span>
@@ -188,9 +124,7 @@ const ChatSidebar = forwardRef(({ currentSessionId, onNewChat, onSelectSession, 
             sessions.map((session) => (
               <div
                 key={session.id}
-                onClick={() => {
-                  onSelectSession(session.id);
-                }}
+                onClick={() => onSelectSession(session.id)}
                 className={`
                   group flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all
                   ${currentSessionId === session.id
@@ -204,11 +138,6 @@ const ChatSidebar = forwardRef(({ currentSessionId, onNewChat, onSelectSession, 
                     <p className="text-sm font-medium truncate">
                       {truncateTitle(session.title)}
                     </p>
-                    {session.message_count > 0 && (
-                      <p className="text-xs text-gray-500">
-                        {session.message_count} {session.message_count === 1 ? 'message' : 'messages'}
-                      </p>
-                    )}
                   </div>
                 </div>
                 <button

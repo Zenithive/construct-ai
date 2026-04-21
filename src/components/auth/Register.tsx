@@ -1,8 +1,10 @@
-// pages/RegisterPage.tsx
+// components/auth/Register.tsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthForm from './AuthForm';
-import supabase from '../../supaBase/supabaseClient';
+import { authApi, setToken, setUser } from '../../api/apiClient';
+
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const Register = () => {
   const [email, setEmail] = useState('');
@@ -17,9 +19,7 @@ const Register = () => {
   // Auto-dismiss error after 5 seconds
   useEffect(() => {
     if (error) {
-      const timer = setTimeout(() => {
-        setError(null);
-      }, 5000);
+      const timer = setTimeout(() => setError(null), 5000);
       return () => clearTimeout(timer);
     }
   }, [error]);
@@ -27,9 +27,7 @@ const Register = () => {
   // Auto-dismiss message after 5 seconds
   useEffect(() => {
     if (message) {
-      const timer = setTimeout(() => {
-        setMessage(null);
-      }, 5000);
+      const timer = setTimeout(() => setMessage(null), 5000);
       return () => clearTimeout(timer);
     }
   }, [message]);
@@ -48,25 +46,26 @@ const Register = () => {
     setIsLoading(true);
 
     try {
-      // You can verify the recaptcha token on your backend here
-      // For now, we'll proceed with signup if token exists
+      // Register the user
+      const data = await authApi.register(email, password, firstName, lastName);
 
-      const { error } = await supabase.auth.signUp({
-        email,
-        password,
-        options: {
-          data: { firstName, lastName },
-          captchaToken: recaptchaToken,
-          emailRedirectTo: `${window.location.origin}/dashboard`
-        },
-      });
+      // Store token and user so OTP page can use them
+      setToken(data.token);
+      setUser(data.user);
 
-      if (error) {
-        setIsLoading(false);
-        throw error;
+      // Send OTP to email
+      try {
+        await fetch(`${BASE_URL}/api/otp/send`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email }),
+        });
+      } catch (otpErr) {
+        // OTP send failed — still proceed, user can resend from OTP page
+        console.warn('OTP send failed:', otpErr);
       }
 
-      setMessage('Signup successful! Redirecting to OTP verification...');
+      setMessage('Registration successful! Redirecting to OTP verification...');
       setIsLoading(false);
       setTimeout(() => navigate('/verify-otp', { state: { email, firstName, lastName } }), 1500);
     } catch (err: any) {
@@ -105,7 +104,7 @@ const Register = () => {
           onSubmit={handleSignUp}
           buttonText="Sign Up"
           showNameFields={true}
-          showCaptcha={true} // captcha visible here
+          showCaptcha={true}
           isLoading={isLoading}
         />
 

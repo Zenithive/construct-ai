@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import supabase from '../../supaBase/supabaseClient';
+
+const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
 
 const OTPVerification = () => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -12,10 +13,8 @@ const OTPVerification = () => {
   const location = useLocation();
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  // Get email and name data from location state (passed from registration)
   const email = location.state?.email || '';
   const firstName = location.state?.firstName || '';
-  const lastName = location.state?.lastName || '';
 
   useEffect(() => {
     if (!email) {
@@ -27,9 +26,7 @@ const OTPVerification = () => {
   // Auto-dismiss error after 5 seconds
   useEffect(() => {
     if (error) {
-      const timer = setTimeout(() => {
-        setError(null);
-      }, 5000);
+      const timer = setTimeout(() => setError(null), 5000);
       return () => clearTimeout(timer);
     }
   }, [error]);
@@ -37,21 +34,16 @@ const OTPVerification = () => {
   // Auto-dismiss message after 5 seconds
   useEffect(() => {
     if (message) {
-      const timer = setTimeout(() => {
-        setMessage(null);
-      }, 5000);
+      const timer = setTimeout(() => setMessage(null), 5000);
       return () => clearTimeout(timer);
     }
   }, [message]);
 
   const handleOtpChange = (index: number, value: string) => {
-    if (value.length > 1) return; // Prevent multiple characters
-
+    if (value.length > 1) return;
     const newOtp = [...otp];
     newOtp[index] = value;
     setOtp(newOtp);
-
-    // Auto-focus next input
     if (value && index < 5) {
       inputRefs.current[index + 1]?.focus();
     }
@@ -78,32 +70,18 @@ const OTPVerification = () => {
     }
 
     try {
-      const { data, error } = await supabase.auth.verifyOtp({
-        email,
-        token: otpCode,
-        type: 'signup'
+      const res = await fetch(`${BASE_URL}/api/otp/verify`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp: otpCode }),
       });
 
-      if (error) {
-        setError(error.message);
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Verification failed. Please try again.');
         setIsLoading(false);
         return;
-      }
-
-      // Insert profile data after successful verification
-      if (data.user) {
-        await supabase
-          .from('profiles')
-          .upsert({
-            id: data.user.id,
-            email: data.user.email,
-            firstName: firstName,
-            lastName: lastName,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          }, {
-            onConflict: 'id'
-          });
       }
 
       setMessage('Email verified successfully! Redirecting to dashboard...');
@@ -120,16 +98,16 @@ const OTPVerification = () => {
     setIsResending(true);
 
     try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email: email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`
-        }
+      const res = await fetch(`${BASE_URL}/api/otp/send`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email }),
       });
 
-      if (error) {
-        setError(`Failed to resend OTP: ${error.message}`);
+      const data = await res.json();
+
+      if (!res.ok) {
+        setError(data.error || 'Failed to resend OTP.');
         setIsResending(false);
         return;
       }
@@ -137,9 +115,9 @@ const OTPVerification = () => {
       setMessage('OTP resent successfully! Check your email (including spam folder).');
       setOtp(['', '', '', '', '', '']);
       inputRefs.current[0]?.focus();
-      setIsResending(false);
     } catch (err: any) {
       setError('Failed to resend OTP. Please try again.');
+    } finally {
       setIsResending(false);
     }
   };
@@ -162,7 +140,6 @@ const OTPVerification = () => {
             {error}
           </div>
         )}
-
         {message && (
           <div className="bg-green-100 text-green-700 p-3 rounded-md mb-4 text-sm animate-fade-in">
             {message}
@@ -174,9 +151,7 @@ const OTPVerification = () => {
             {otp.map((digit, index) => (
               <input
                 key={index}
-                ref={(el) => {
-                  if (el) inputRefs.current[index] = el;
-                }}
+                ref={(el) => { if (el) inputRefs.current[index] = el; }}
                 type="text"
                 inputMode="numeric"
                 pattern="[0-9]*"
@@ -204,9 +179,7 @@ const OTPVerification = () => {
         </form>
 
         <div className="mt-6 text-center">
-          <p className="text-gray-600 text-sm mb-2">
-            Didn't receive the code?
-          </p>
+          <p className="text-gray-600 text-sm mb-2">Didn't receive the code?</p>
           <button
             onClick={handleResendOTP}
             disabled={isResending}

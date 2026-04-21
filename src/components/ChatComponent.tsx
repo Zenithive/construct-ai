@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Send, Search, ArrowDown, Menu, Upload as Paperclip } from 'lucide-react';
-import supabase from '../supaBase/supabaseClient';
+import { chatApi, getUser } from '../api/apiClient';
 import UploadComponent from './Upload';
 
 // Types
@@ -21,7 +21,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
   const messagesEndRef = useRef(null);
   const [region, setRegion] = useState(selectedRegion);
   const [category, setCategory] = useState(selectedCategory);
-  const [userId, setUserId] = useState<string | null>(null);
+  const [userId, setUserId] = useState<string | null>(getUser()?.id || null);
   const [isAutoScroll, setIsAutoScroll] = useState(true);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const isProcessingRef = useRef(false);
@@ -189,34 +189,27 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
     return <div className="text-sm sm:text-base max-w-none leading-relaxed break-words overflow-wrap-anywhere" dangerouslySetInnerHTML={{ __html: parsedContent }} />;
   };
 
-  // Function to save a message to Supabase
+  // Function to save a message to the backend API
   const saveMessageToSupabase = async (message: Message) => {
-    if (!userId) {
-      return;
-    }
+    if (!sessionId) return;
 
     try {
-      const { error } = await supabase
-        .from('chat_messages')
-        .insert({
-          user_id: userId,
-          session_id: sessionId,
-          message_type: message.type,
-          content: message.content,
-          citations: message.citations || null,
-          confidence: message.confidence || null,
+      await chatApi.saveMessage(
+        sessionId,
+        message.type,
+        message.content,
+        {
+          citations: message.citations || undefined,
+          confidence: message.confidence || undefined,
           region: region,
-          category: category
-        });
-
-      if (error) {
-      } else {
-        // Notify parent that message was sent (to refresh sidebar)
-        if (onMessageSent) {
-          onMessageSent();
+          category: category,
         }
+      );
+      if (onMessageSent) {
+        onMessageSent();
       }
     } catch (err) {
+      console.error('Failed to save message:', err);
     }
   };
 
@@ -251,42 +244,18 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
       try {
         setIsLoadingHistory(true);
 
-        // Get current user
-        const { data: { user }, error: userError } = await supabase.auth.getUser();
-
-        if (userError || !user) {
-          setIsLoadingHistory(false);
-          return;
-        }
-
-        setUserId(user.id);
-
-        // Fetch chat history from Supabase for this session
-        const { data, error } = await supabase
-          .from('chat_messages')
-          .select('*')
-          .eq('user_id', user.id)
-          .eq('session_id', sessionId)
-          .order('created_at', { ascending: true });
-
-        if (error) {
-          setMessages([]);
-          setIsLoadingHistory(false);
-          return;
-        }
-
-        // Transform Supabase data to Message format
-        const loadedMessages: Message[] = (data || []).map((msg) => ({
+        const data = await chatApi.getMessages(sessionId);
+        const loadedMessages: Message[] = (data.messages || []).map((msg: any) => ({
           type: msg.message_type as 'user' | 'ai',
           content: msg.content,
           citations: msg.citations || undefined,
           confidence: msg.confidence || undefined,
-          timestamp: new Date(msg.created_at)
+          timestamp: new Date(msg.created_at),
         }));
 
         setMessages(loadedMessages);
-
       } catch (err) {
+        console.error('Failed to load chat history:', err);
         setMessages([]);
       } finally {
         setIsLoadingHistory(false);
