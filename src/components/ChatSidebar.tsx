@@ -1,6 +1,7 @@
 import { useState, useEffect, forwardRef, useImperativeHandle } from 'react';
-import { MessageSquare, Plus, Trash2 } from 'lucide-react';
-import supabase from '../supaBase/supabaseClient';
+import { MessageSquare, Plus, Trash2, LogOut, HardHat, PanelLeftClose, PanelLeftOpen } from 'lucide-react';
+import { chatApi, getUser, removeToken, removeUser } from '../api/apiClient';
+import { useNavigate } from 'react-router-dom';
 
 type ChatSession = {
   id: string;
@@ -19,103 +20,33 @@ type ChatSidebarProps = {
   onToggle: () => void;
 };
 
-const ChatSidebar = forwardRef(({ currentSessionId, onNewChat, onSelectSession, onDeleteSession, isOpen, onToggle }: ChatSidebarProps, ref) => {
+const ChatSidebar = forwardRef(({
+  currentSessionId, onNewChat, onSelectSession, onDeleteSession, isOpen, onToggle
+}: ChatSidebarProps, ref) => {
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [userFirstName, setUserFirstName] = useState<string>('User');
+  const [userFirstName, setUserFirstName] = useState('User');
+  const [userEmail, setUserEmail] = useState('');
+  const navigate = useNavigate();
 
-  // Expose refresh function to parent
-  useImperativeHandle(ref, () => ({
-    refreshSessions: loadChatSessions
-  }));
+  useImperativeHandle(ref, () => ({ refreshSessions: loadChatSessions }));
 
-  useEffect(() => {
-    loadChatSessions();
-    loadUserInfo();
-  }, []);
+  useEffect(() => { loadChatSessions(); loadUserInfo(); }, []);
 
-  const loadUserInfo = async () => {
-    try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        return;
-      }
-
-
-      // First, try to get firstName from user metadata (where it's being stored during signup)
-      if (user.user_metadata?.firstName) {
-        setUserFirstName(user.user_metadata.firstName);
-        return;
-      }
-
-      // Fallback: Try to fetch from users table in Supabase
-      const { data: userData, error: dbError } = await supabase
-        .from('users')
-        .select('*')
-        .eq('id', user.id)
-        .single();
-
-
-      if (dbError) {
-        // Fallback to email username if database query fails
-        if (user.email) {
-          const emailUsername = user.email.split('@')[0];
-          setUserFirstName(emailUsername.charAt(0).toUpperCase() + emailUsername.slice(1));
-        }
-        return;
-      }
-
-
-      if (userData?.firstName) {
-        setUserFirstName(userData.firstName);
-      } else {
-        if (user.email) {
-          const emailUsername = user.email.split('@')[0];
-          setUserFirstName(emailUsername.charAt(0).toUpperCase() + emailUsername.slice(1));
-        }
-      }
-    } catch (err) {
-    }
+  const loadUserInfo = () => {
+    const user = getUser();
+    if (user?.firstName) setUserFirstName(user.firstName);
+    else if (user?.email) setUserFirstName(user.email.split('@')[0]);
+    if (user?.email) setUserEmail(user.email);
   };
 
   const loadChatSessions = async () => {
     try {
       setIsLoading(true);
-
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        return;
-      }
-
-      // Load chat sessions
-      const { data: sessionsData, error: sessionsError } = await supabase
-        .from('chat_sessions')
-        .select('*')
-        .eq('user_id', user.id)
-        .order('updated_at', { ascending: false });
-
-      if (sessionsError) {
-        return;
-      }
-
-      // Load message counts for each session
-      const sessionsWithCounts = await Promise.all(
-        (sessionsData || []).map(async (session) => {
-          const { count, error: countError } = await supabase
-            .from('chat_messages')
-            .select('*', { count: 'exact', head: true })
-            .eq('session_id', session.id);
-
-          if (countError) {
-            return { ...session, message_count: 0 };
-          }
-
-          return { ...session, message_count: count || 0 };
-        })
-      );
-
-      setSessions(sessionsWithCounts);
+      const data = await chatApi.getSessions();
+      setSessions((data.sessions || []).map((s: any) => ({ ...s, message_count: 0 })));
     } catch (err) {
+      console.error('Failed to load sessions:', err);
     } finally {
       setIsLoading(false);
     }
@@ -123,116 +54,182 @@ const ChatSidebar = forwardRef(({ currentSessionId, onNewChat, onSelectSession, 
 
   const handleDeleteSession = async (sessionId: string, e: React.MouseEvent) => {
     e.stopPropagation();
-
-    if (!window.confirm('Are you sure you want to delete this chat?')) {
-      return;
-    }
-
+    if (!window.confirm('Delete this chat?')) return;
     onDeleteSession(sessionId);
-
-    // Remove from local state
     setSessions(sessions.filter(s => s.id !== sessionId));
   };
 
-  const truncateTitle = (title: string, maxLength: number = 25) => {
-    return title.length > maxLength ? title.substring(0, maxLength) + '...' : title;
+  const handleLogout = () => { removeToken(); removeUser(); navigate('/'); };
+
+  const truncateTitle = (title: string, max = 26) =>
+    title.length > max ? title.substring(0, max) + '…' : title;
+
+  const formatDate = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const days = Math.floor((Date.now() - date.getTime()) / 86400000);
+    if (days === 0) return 'Today';
+    if (days === 1) return 'Yesterday';
+    if (days < 7) return `${days}d ago`;
+    return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
   };
 
   return (
     <>
-      {/* Overlay for mobile */}
+      {/* Mobile overlay */}
       {isOpen && (
-        <div
-          className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-30"
-          onClick={onToggle}
-        />
+        <div className="md:hidden fixed inset-0 bg-black/30 z-30" onClick={onToggle} />
       )}
 
-      {/* Sidebar */}
+      {/*
+        Sidebar container:
+        - Open:    w-64, shows full content
+        - Closed:  w-14, shows only icon strip (like ChatGPT)
+        Transition is smooth on width only.
+      */}
       <div
         className={`
-          fixed md:relative inset-y-0 left-0 z-40
-          bg-gradient-to-b from-gray-50 to-gray-100 border-r border-gray-200 flex flex-col shadow-lg
-          transform transition-all duration-300 ease-in-out flex-shrink-0
-          ${isOpen ? 'w-72 translate-x-0' : 'w-0 md:w-0 -translate-x-full md:translate-x-0'}
+          relative flex flex-col flex-shrink-0 h-full
+          bg-[#f9f9f9] border-r border-gray-200
+          transition-all duration-300 ease-in-out
+          ${isOpen ? 'w-64' : 'w-14'}
         `}
-        style={{ overflow: isOpen ? 'visible' : 'hidden' }}
       >
-        {/* New Chat Button */}
-        <div className="p-4 border-b border-gray-200">
+        {/* ── Top controls ── */}
+        <div className={`flex items-center h-14 px-3 flex-shrink-0 ${isOpen ? 'justify-between' : 'justify-center'}`}>
+          {/* Logo — only when open */}
+          {isOpen && (
+            <div className="flex items-center space-x-2 overflow-hidden">
+              <div className="bg-blue-600 p-1.5 rounded-lg flex-shrink-0">
+                <HardHat className="h-4 w-4 text-white" />
+              </div>
+              <span className="font-semibold text-gray-800 text-sm whitespace-nowrap">ConstructAI</span>
+            </div>
+          )}
+
+          {/* Toggle button */}
           <button
-            onClick={() => {
-              onNewChat();
-            }}
-            className="w-full flex items-center space-x-3 px-4 py-3 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white rounded-lg transition-all shadow-md hover:shadow-lg group"
+            onClick={onToggle}
+            className="p-1.5 text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors flex-shrink-0"
+            title={isOpen ? 'Close sidebar' : 'Open sidebar'}
           >
-            <Plus className="h-5 w-5" />
-            <span className="font-medium">New Chat</span>
+            {isOpen
+              ? <PanelLeftClose className="h-5 w-5" />
+              : <PanelLeftOpen className="h-5 w-5" />
+            }
           </button>
         </div>
 
-        {/* Chat History */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-2">
-          {isLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-8 w-8 border-2 border-blue-600 border-t-transparent mx-auto"></div>
-              <p className="text-sm text-gray-600 mt-2">Loading chats...</p>
-            </div>
-          ) : sessions.length === 0 ? (
-            <div className="text-center py-8 text-gray-500">
-              <MessageSquare className="h-12 w-12 mx-auto mb-2 opacity-50 text-gray-400" />
-              <p className="text-sm">No chat history yet</p>
-              <p className="text-xs mt-1">Start a new conversation!</p>
-            </div>
+        {/* ── New Chat button ── */}
+        <div className={`px-2 pb-2 flex-shrink-0 ${!isOpen ? 'flex justify-center' : ''}`}>
+          {isOpen ? (
+            <button
+              onClick={onNewChat}
+              className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-200 rounded-lg transition-colors font-medium"
+            >
+              <Plus className="h-4 w-4 flex-shrink-0" />
+              <span className="whitespace-nowrap">New chat</span>
+            </button>
           ) : (
-            sessions.map((session) => (
-              <div
-                key={session.id}
-                onClick={() => {
-                  onSelectSession(session.id);
-                }}
-                className={`
-                  group flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer transition-all
-                  ${currentSessionId === session.id
-                    ? 'bg-blue-100 border-l-4 border-blue-600 text-blue-900 shadow-sm'
-                    : 'hover:bg-white hover:shadow-sm text-gray-700 hover:text-gray-900 border-l-4 border-transparent'}
-                `}
-              >
-                <div className="flex items-center space-x-3 flex-1 min-w-0">
-                  <MessageSquare className={`h-4 w-4 flex-shrink-0 ${currentSessionId === session.id ? 'text-blue-600' : 'text-gray-500'}`} />
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium truncate">
-                      {truncateTitle(session.title)}
-                    </p>
-                    {session.message_count > 0 && (
-                      <p className="text-xs text-gray-500">
-                        {session.message_count} {session.message_count === 1 ? 'message' : 'messages'}
-                      </p>
-                    )}
-                  </div>
-                </div>
-                <button
-                  onClick={(e) => handleDeleteSession(session.id, e)}
-                  className="opacity-0 group-hover:opacity-100 p-1.5 hover:bg-red-100 hover:text-red-600 rounded transition-all"
-                >
-                  <Trash2 className="h-4 w-4" />
-                </button>
-              </div>
-            ))
+            <button
+              onClick={onNewChat}
+              title="New chat"
+              className="p-2 text-gray-500 hover:text-gray-900 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              <Plus className="h-5 w-5" />
+            </button>
           )}
         </div>
 
-        {/* User Info */}
-        <div className="p-4 border-t border-gray-200 bg-gray-50">
-          <div className="flex items-center space-x-3 px-2">
-            <div className="w-8 h-8 bg-gradient-to-br from-blue-600 to-indigo-600 rounded-full flex items-center justify-center shadow-md">
-              <span className="text-sm font-bold text-white">{userFirstName.charAt(0).toUpperCase()}</span>
+        {/* ── Sessions list ── */}
+        <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2">
+          {isOpen ? (
+            // Full list when open
+            isLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <div className="animate-spin rounded-full h-5 w-5 border-2 border-gray-300 border-t-gray-600" />
+              </div>
+            ) : sessions.length === 0 ? (
+              <div className="text-center py-10 px-4">
+                <MessageSquare className="h-7 w-7 text-gray-300 mx-auto mb-2" />
+                <p className="text-gray-400 text-xs">No conversations yet</p>
+              </div>
+            ) : (
+              <div className="space-y-0.5">
+                {sessions.map((session) => (
+                  <div
+                    key={session.id}
+                    onClick={() => onSelectSession(session.id)}
+                    className={`
+                      group flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer transition-colors
+                      ${currentSessionId === session.id
+                        ? 'bg-gray-200 text-gray-900'
+                        : 'text-gray-600 hover:bg-gray-200 hover:text-gray-900'}
+                    `}
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm truncate">{truncateTitle(session.title)}</p>
+                      <p className="text-xs text-gray-400 mt-0.5">{formatDate(session.updated_at)}</p>
+                    </div>
+                    <button
+                      onClick={(e) => handleDeleteSession(session.id, e)}
+                      className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-500 rounded transition-all flex-shrink-0 ml-1"
+                    >
+                      <Trash2 className="h-3.5 w-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )
+          ) : (
+            // Icon-only dots when collapsed
+            <div className="flex flex-col items-center space-y-1 pt-1">
+              {sessions.slice(0, 8).map((session) => (
+                <button
+                  key={session.id}
+                  onClick={() => onSelectSession(session.id)}
+                  title={session.title}
+                  className={`
+                    w-8 h-8 rounded-lg flex items-center justify-center transition-colors
+                    ${currentSessionId === session.id
+                      ? 'bg-gray-300 text-gray-900'
+                      : 'text-gray-400 hover:bg-gray-200 hover:text-gray-700'}
+                  `}
+                >
+                  <MessageSquare className="h-4 w-4" />
+                </button>
+              ))}
             </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-medium text-gray-900 truncate">{userFirstName}</p>
-              <p className="text-xs text-gray-500">Free Plan</p>
+          )}
+        </div>
+
+        {/* ── User footer ── */}
+        <div className={`flex-shrink-0 border-t border-gray-200 p-2 ${!isOpen ? 'flex justify-center' : ''}`}>
+          {isOpen ? (
+            <div className="flex items-center space-x-2.5 px-2 py-2 rounded-lg hover:bg-gray-200 transition-colors group cursor-default">
+              <div className="w-7 h-7 bg-blue-600 rounded-full flex items-center justify-center flex-shrink-0">
+                <span className="text-xs font-semibold text-white">{userFirstName.charAt(0).toUpperCase()}</span>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-sm font-medium text-gray-800 truncate">{userFirstName}</p>
+                <p className="text-xs text-gray-400 truncate">{userEmail}</p>
+              </div>
+              <button
+                onClick={handleLogout}
+                title="Log out"
+                className="p-1 text-gray-400 hover:text-red-500 rounded transition-colors flex-shrink-0"
+              >
+                <LogOut className="h-4 w-4" />
+              </button>
             </div>
-          </div>
+          ) : (
+            <button
+              onClick={handleLogout}
+              title="Log out"
+              className="w-8 h-8 flex items-center justify-center text-gray-400 hover:text-red-500 hover:bg-gray-200 rounded-lg transition-colors"
+            >
+              <LogOut className="h-4 w-4" />
+            </button>
+          )}
         </div>
       </div>
     </>
@@ -240,5 +237,4 @@ const ChatSidebar = forwardRef(({ currentSessionId, onNewChat, onSelectSession, 
 });
 
 ChatSidebar.displayName = 'ChatSidebar';
-
 export default ChatSidebar;

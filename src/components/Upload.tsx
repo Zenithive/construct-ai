@@ -1,207 +1,131 @@
-
 import React, { useState, useRef, useEffect } from 'react';
-import { Upload, FileText, Download, Loader2 } from 'lucide-react';
-import supabase from '../supaBase/supabaseClient';
+import { Upload, FileText, X, Loader2, CheckCircle } from 'lucide-react';
+import { uploadApi, AI_BASE_URL } from '../api/apiClient';
 import axios from "axios";
+
 type UploadedFile = {
   id: string;
   name: string;
   size: number;
   type: string;
   uploadedAt: Date;
+  status: 'uploading' | 'success' | 'error';
 };
 
 const UploadComponent = () => {
   const [uploadedFiles, setUploadedFiles] = useState<UploadedFile[]>([]);
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Fetch uploaded files from Supabase Storage for the authenticated user
-  const fetchFiles = async () => {
-    try {
-      const { data: { user }, error: userError } = await supabase.auth.getUser();
-      if (userError || !user) {
-        setError('You must be logged in to view files.');
-        return;
-      }
-      const userId = user.id;
-      const { data, error } = await supabase.storage.from('files').list(`users/${userId}`);
-      if (error) {
-        setError(error.message);
-        return;
-      }
-      const files = data.map((file) => ({
-        id: `users/${userId}/${file.name}`,
-        name: file.name,
-        size: file.metadata?.size || 0,
-        type: file.metadata?.mimetype || 'application/octet-stream',
-        uploadedAt: new Date(file.created_at || Date.now()),
-      }));
-      setUploadedFiles(files);
-    } catch (err: any) {
-      setError('Failed to fetch files. Please try again.');
-    }
-  };
-
   useEffect(() => {
-    fetchFiles();
-  }, []);
-
-  useEffect(() => {
-    if (message) {
-      const timer = setTimeout(() => {
-        setMessage(null);
-      }, 3000);
-      return () => clearTimeout(timer);
+    if (error) {
+      const t = setTimeout(() => setError(null), 5000);
+      return () => clearTimeout(t);
     }
-  }, [message]);
+  }, [error]);
 
   const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(event.target.files || []);
-    if (files.length === 0) {
-      setError('Please select at least one file.');
-      return;
-    }
+    if (files.length === 0) return;
 
     setError(null);
-    setMessage(null);
     setIsUploading(true);
 
-    const { data: { user }, error: userError } = await supabase.auth.getUser();
-    if (userError || !user) {
-      setError('You must be logged in to upload files.');
-      setIsUploading(false);
-      return;
-    }
-    const userId = user.id;
-
     const allowedTypes = ['application/pdf', 'application/msword', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'];
-    const newFiles: UploadedFile[] = [];
 
     for (const file of files) {
       const f = file as File;
       if (!allowedTypes.includes(f.type)) {
-        setError(`Invalid file type for ${f.name}. Please upload PDF, DOC, or DOCX files.`);
+        setError(`Invalid file type: ${f.name}. Only PDF, DOC, DOCX allowed.`);
         setIsUploading(false);
         return;
       }
+
+      // Add to list with uploading status
+      const tempFile: UploadedFile = {
+        id: `temp-${Date.now()}-${f.name}`,
+        name: f.name,
+        size: f.size,
+        type: f.type,
+        uploadedAt: new Date(),
+        status: 'uploading',
+      };
+      setUploadedFiles((prev) => [...prev, tempFile]);
 
       try {
-        const fileName = `users/${userId}/doc_${Date.now()}_${f.name}`;
-        const { error: uploadError } = await supabase.storage
-          .from('files')
-          .upload(fileName, f, {
-            contentType: f.type,
-            upsert: false,
-          });
+        // Upload to backend
+        const result = await uploadApi.uploadFile(f);
 
-        if (uploadError) {
-          setError(`Failed to upload ${f.name}: ${uploadError.message}`);
-          setIsUploading(false);
-          return;
-        }
+        // Send to external AI API
+        await sendFileToAPI(f);
 
-        // Also send to external API for processing
-        const apiSuccess = await sendFileToAPI(f);
-        if (!apiSuccess) {
-        }
-
-        newFiles.push({
-          id: fileName,
-          name: f.name,
-          size: f.size,
-          type: f.type,
-          uploadedAt: new Date(),
-        });
+        // Update status to success
+        setUploadedFiles((prev) =>
+          prev.map((file) =>
+            file.id === tempFile.id
+              ? { ...file, id: result.file.path, status: 'success' as const }
+              : file
+          )
+        );
       } catch (err: any) {
-        setError(`Failed to upload ${f.name}. Please try again.`);
-        setIsUploading(false);
-        return;
+        // Update status to error
+        setUploadedFiles((prev) =>
+          prev.map((file) =>
+            file.id === tempFile.id ? { ...file, status: 'error' as const } : file
+          )
+        );
+        setError(`Failed to upload ${f.name}`);
       }
     }
 
-    setUploadedFiles((prev) => [...prev, ...newFiles]);
-    setMessage('Files uploaded successfully!');
     setIsUploading(false);
-    fetchFiles();
+    if (fileInputRef.current) fileInputRef.current.value = '';
   };
 
-  const handleDownload = async (fileName: string) => {
-    try {
-      const { data, error } = await supabase.storage
-        .from('files')
-        .download(fileName);
-
-      if (error) {
-        setError(error.message);
-        return;
-      }
-
-      const url = window.URL.createObjectURL(data);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = fileName.split('/').pop()!.split('_').slice(1).join('_');
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-    } catch (err: any) {
-      setError('Failed to download file. Please try again.');
-    }
-  };
-
-  // Send file to external API for processing
   const sendFileToAPI = async (file: File) => {
     try {
-      // Verify the file is actually a File object
-      if (!(file instanceof File)) {
-        return false;
-      }
-
+      if (!(file instanceof File)) return false;
       const formData = new FormData();
       formData.append("file", file, file.name);
-
-      const response = await axios.post("https://construction-ai-new-production.up.railway.app/api/v1/company/documents/upload", formData);
-
-      const data = response.data;
-
-      if (data.status === "processing") {
-        return true;
-      } else {
-        return false;
-      }
+      const response = await axios.post(
+        `${AI_BASE_URL}/api/v1/company/documents/upload`,
+        formData
+      );
+      return response.data.status === "processing";
     } catch (error: any) {
       return false;
     }
   };
 
-
-
-
+  const removeFile = (fileId: string) => {
+    setUploadedFiles((prev) => prev.filter((f) => f.id !== fileId));
+  };
 
   return (
-    <div className="bg-gray-50">
-      <div className="p-4 sm:p-6">
-        <div className="text-center mb-6 sm:mb-8">
-          <Upload className="h-12 w-12 sm:h-16 sm:w-16 text-blue-600 mx-auto mb-3 sm:mb-4" />
-          <h2 className="text-xl sm:text-2xl font-bold text-gray-900 mb-2">Upload & Analyze Documents</h2>
-          <p className="text-sm sm:text-base text-gray-600 px-4">Upload contracts, tenders, or regulations for AI analysis</p>
-        </div>
+    <div className="h-full bg-white flex flex-col overflow-hidden">
+      {/* Header */}
+      <div className="flex-shrink-0 border-b border-gray-200 px-6 py-4">
+        <h1 className="text-xl font-semibold text-gray-900">Upload Documents</h1>
+        <p className="text-sm text-gray-500 mt-1">Upload construction documents for AI analysis</p>
+      </div>
 
-        <div className="max-w-4xl mx-auto">
+      {/* Content */}
+      <div className="flex-1 overflow-y-auto p-6">
+        <div className="max-w-3xl mx-auto">
+          {/* Error message */}
           {error && (
-            <div className="bg-red-100 text-red-700 p-3 rounded-md mb-4 text-sm">
-              {error}
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm flex items-start space-x-2">
+              <span className="mt-0.5">⚠</span>
+              <span>{error}</span>
             </div>
           )}
-          {message && (
-            <div className="bg-green-100 text-green-700 p-3 rounded-md mb-4 text-sm">
-              {message}
-            </div>
-          )}
-          <div className="border-2 border-dashed border-gray-300 rounded-lg p-6 sm:p-8 text-center hover:border-blue-500 transition-colors">
+
+          {/* Upload area */}
+          <div
+            onClick={() => fileInputRef.current?.click()}
+            className="border-2 border-dashed border-gray-300 hover:border-gray-400 rounded-xl p-12 text-center cursor-pointer transition-colors bg-gray-50 hover:bg-gray-100"
+          >
             <input
               type="file"
               ref={fileInputRef}
@@ -211,38 +135,58 @@ const UploadComponent = () => {
               disabled={isUploading}
               className="hidden"
             />
-            <button
-              onClick={() => fileInputRef.current?.click()}
-              disabled={isUploading}
-              className={`px-4 py-2 sm:px-6 sm:py-3 rounded-lg mb-3 sm:mb-4 text-sm sm:text-base font-medium inline-flex items-center space-x-2 ${isUploading
-                  ? 'bg-gray-400 cursor-not-allowed'
-                  : 'bg-blue-600 hover:bg-blue-700 cursor-pointer'
-                } text-white`}
-            >
-              {isUploading && <Loader2 className="h-4 w-4 animate-spin" />}
-              <span>{isUploading ? 'Uploading...' : 'Choose Files'}</span>
-            </button>
-            <p className="text-gray-500 text-sm sm:text-base">or drag and drop PDF, DOC, DOCX files here</p>
+            <div className="flex flex-col items-center">
+              <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mb-3">
+                <Upload className="h-6 w-6 text-blue-600" />
+              </div>
+              <p className="text-sm font-medium text-gray-700 mb-1">
+                {isUploading ? 'Uploading...' : 'Click to upload or drag and drop'}
+              </p>
+              <p className="text-xs text-gray-500">PDF, DOC, or DOCX (max 10MB)</p>
+            </div>
           </div>
 
+          {/* Uploaded files list */}
           {uploadedFiles.length > 0 && (
-            <div className="mt-6 sm:mt-8">
-              <h3 className="text-lg font-medium mb-3 sm:mb-4">Uploaded Files</h3>
-              <div className="space-y-3">
+            <div className="mt-6">
+              <h3 className="text-sm font-semibold text-gray-700 mb-3">
+                Uploaded files ({uploadedFiles.length})
+              </h3>
+              <div className="space-y-2">
                 {uploadedFiles.map((file) => (
-                  <div key={file.id} className="flex items-center space-x-3 p-3 sm:p-4 border rounded-lg bg-white hover:shadow-sm transition-shadow">
-                    <FileText className="h-6 w-6 sm:h-8 sm:w-8 text-blue-600 flex-shrink-0" />
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm sm:text-base truncate">{file.name}</div>
-                      <div className="text-xs sm:text-sm text-gray-500">
-                        {(file.size / 1024 / 1024).toFixed(2)} MB • Uploaded {file.uploadedAt.toLocaleTimeString()}
-                      </div>
+                  <div
+                    key={file.id}
+                    className="flex items-center space-x-3 p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors"
+                  >
+                    {/* Icon */}
+                    <div className="flex-shrink-0">
+                      {file.status === 'uploading' ? (
+                        <Loader2 className="h-5 w-5 text-blue-600 animate-spin" />
+                      ) : file.status === 'success' ? (
+                        <CheckCircle className="h-5 w-5 text-green-600" />
+                      ) : (
+                        <FileText className="h-5 w-5 text-gray-400" />
+                      )}
                     </div>
+
+                    {/* File info */}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
+                      <p className="text-xs text-gray-500">
+                        {(file.size / 1024 / 1024).toFixed(2)} MB
+                        {file.status === 'uploading' && ' • Uploading...'}
+                        {file.status === 'success' && ' • Ready'}
+                        {file.status === 'error' && ' • Failed'}
+                      </p>
+                    </div>
+
+                    {/* Remove button */}
                     <button
-                      onClick={() => handleDownload(file.id)}
-                      className="text-blue-600 hover:text-blue-800 flex-shrink-0"
+                      onClick={() => removeFile(file.id)}
+                      className="flex-shrink-0 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors"
+                      title="Remove"
                     >
-                      <Download className="h-4 w-4 sm:h-5 sm:w-5" />
+                      <X className="h-4 w-4" />
                     </button>
                   </div>
                 ))}

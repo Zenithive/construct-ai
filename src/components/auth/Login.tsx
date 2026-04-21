@@ -1,8 +1,7 @@
-// components/auth/Login.tsx
 import React, { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import AuthForm from './AuthForm';
-import supabase  from '../../supaBase/supabaseClient';
+import { authApi, setToken, setUser, isAuthenticated } from '../../api/apiClient';
 
 const Login = () => {
   const [email, setEmail] = useState('');
@@ -12,163 +11,83 @@ const Login = () => {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useNavigate();
 
-  useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-        if (error) {
-          console.error('Session check error:', error);
-          return;
-        }
-        if (session) {
-          navigate('/dashboard');
-        }
-      } catch (err) {
-        console.error('Session check failed:', err);
-        // Silently fail - user can still attempt to login
-      }
-    };
-    checkSession();
-  }, [navigate]);
-
-  // Auto-dismiss error after 5 seconds
-  useEffect(() => {
-    if (error) {
-      const timer = setTimeout(() => {
-        setError(null);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [error]);
-
-  // Auto-dismiss message after 5 seconds
-  useEffect(() => {
-    if (message) {
-      const timer = setTimeout(() => {
-        setMessage(null);
-      }, 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [message]);
+  useEffect(() => { if (isAuthenticated()) navigate('/dashboard'); }, [navigate]);
+  useEffect(() => { if (error) { const t = setTimeout(() => setError(null), 5000); return () => clearTimeout(t); } }, [error]);
+  useEffect(() => { if (message) { const t = setTimeout(() => setMessage(null), 5000); return () => clearTimeout(t); } }, [message]);
 
   const handleLogin = async (e: React.FormEvent, recaptchaToken?: string | null) => {
     e.preventDefault();
-    setError(null);
-    setMessage(null);
-    setIsLoading(true);
-
+    setError(null); setMessage(null); setIsLoading(true);
     try {
-      // Note: recaptchaToken will be null for login since showCaptcha=false
-      // You can enable it later if needed by setting showCaptcha={true} in the AuthForm
-
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-
-      if (error) {
-        if (error.message === 'Email not confirmed') {
-          setError('Please confirm your email address to log in. Check your inbox or spam folder.');
-        } else {
-          setError(error.message);
-        }
-        setIsLoading(false);
-        return;
-      }
-
-      setMessage('Login successful!');
-      setIsLoading(false);
+      const data = await authApi.login(email, password);
+      setToken(data.token); setUser(data.user);
       navigate('/dashboard');
     } catch (err: any) {
-      setError('An unexpected error occurred. Please try again.');
+      setError(err.message || 'Invalid email or password.');
       setIsLoading(false);
-    }
-  };
-
-  const handleResendConfirmation = async () => {
-    try {
-      const { error } = await supabase.auth.resend({
-        type: 'signup',
-        email,
-        options: {
-          emailRedirectTo: `${window.location.origin}/dashboard`
-        }
-      });
-      if (error) {
-        setError(error.message);
-        return;
-      }
-      setMessage('Confirmation email resent! Check your inbox or spam folder.');
-    } catch (err: any) {
-      setError('Failed to resend confirmation email. Please try again.');
-    }
-  };
-
-  const handleForgotPassword = async () => {
-    if (!email) {
-      setError('Please enter your email address to reset your password.');
-      return;
-    }
-    try {
-      const redirectUrl = `${window.location.origin}/reset-password`;
-      const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: redirectUrl,
-      });
-      if (error) {
-        setError(error.message);
-        return;
-      }
-      setMessage('Password reset email sent! Check your inbox or spam folder.');
-    } catch (err: any) {
-      setError('Failed to send password reset email. Please try again.');
     }
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md transform transition-all duration-300 hover:shadow-2xl">
-        <h2 className="text-2xl font-bold text-center text-gray-800 mb-6">
-          Login
-        </h2>
-        {error && (
-          <div className="bg-red-100 text-red-700 p-3 rounded-md mb-4 text-sm animate-fade-in">
-            {error}
-            {error === 'Please confirm your email address to log in. Check your inbox or spam folder.' && (
-              <button
-                onClick={handleResendConfirmation}
-                className="ml-2 text-blue-600 underline"
-              >
-                Resend Confirmation Email
-              </button>
-            )}
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex flex-col items-center justify-center p-4 relative overflow-hidden">
+      {/* Animated background elements */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-40 -right-40 w-80 h-80 bg-blue-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob"></div>
+        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-purple-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-2000"></div>
+        <div className="absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-indigo-400 rounded-full mix-blend-multiply filter blur-3xl opacity-20 animate-blob animation-delay-4000"></div>
+      </div>
+
+      <div className="w-full max-w-md relative z-10">
+        <div className="bg-white/80 backdrop-blur-xl border border-white/20 rounded-3xl p-8 shadow-2xl shadow-blue-500/10">
+          <div className="mb-8">
+            <h2 className="text-2xl font-bold text-gray-900 text-center mb-2">Welcome back</h2>
+            <p className="text-sm text-gray-600 text-center">Sign in to continue to your account</p>
           </div>
-        )}
-        {message && (
-          <div className="bg-green-100 text-green-700 p-3 rounded-md mb-4 text-sm animate-fade-in">
-            {message}
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-xl mb-4 text-sm flex items-start space-x-2 animate-shake">
+              <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zM8.707 7.293a1 1 0 00-1.414 1.414L8.586 10l-1.293 1.293a1 1 0 101.414 1.414L10 11.414l1.293 1.293a1 1 0 001.414-1.414L11.414 10l1.293-1.293a1 1 0 00-1.414-1.414L10 8.586 8.707 7.293z" clipRule="evenodd" />
+              </svg>
+              <span>{error}</span>
+            </div>
+          )}
+          {message && (
+            <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-xl mb-4 text-sm flex items-start space-x-2">
+              <svg className="w-5 h-5 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
+              </svg>
+              <span>{message}</span>
+            </div>
+          )}
+
+          <AuthForm
+            email={email}
+            setEmail={setEmail}
+            password={password}
+            setPassword={setPassword}
+            onSubmit={handleLogin}
+            buttonText="Sign in"
+            showCaptcha={false}
+            isLoading={isLoading}
+          />
+
+          <div className="mt-6 pt-6 border-t border-gray-200">
+            <p className="text-center text-sm text-gray-600">
+              Don't have an account?{' '}
+              <Link to="/register" className="font-semibold text-blue-600 hover:text-indigo-600 transition-colors">
+                Sign up for free
+              </Link>
+            </p>
           </div>
-        )}
-        <AuthForm
-          email={email}
-          setEmail={setEmail}
-          password={password}
-          setPassword={setPassword}
-          onSubmit={handleLogin}
-          buttonText="Login"
-          showCaptcha={false} // captcha hidden
-          isLoading={isLoading}
-        />
-        <p className="mt-4 text-center text-sm text-gray-600">
-          Forgot your password?{' '}
-          <button
-            onClick={handleForgotPassword}
-            className="text-primary underline"
-          >
-            Forgot Password
-          </button>
-        </p>
-        <p className="mt-4 text-center text-sm text-gray-600">
-          Don’t have an account?{' '}
-          <Link to="/register" className="text-primary underline">
-            Sign Up
-          </Link>
+        </div>
+
+        {/* Footer */}
+        <p className="text-center text-xs text-gray-500 mt-6">
+          By signing in, you agree to our{' '}
+          <a href="#" className="text-blue-600 hover:text-indigo-600 underline">Terms</a>
+          {' '}and{' '}
+          <a href="#" className="text-blue-600 hover:text-indigo-600 underline">Privacy Policy</a>
         </p>
       </div>
     </div>

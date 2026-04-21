@@ -1,7 +1,7 @@
 // components/auth/Logout.tsx
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import supabase from '../../supaBase/supabaseClient';
+import { authApi, removeToken, removeUser } from '../../api/apiClient';
 
 const Logout = () => {
   const navigate = useNavigate();
@@ -11,18 +11,15 @@ const Logout = () => {
   useEffect(() => {
     const signOut = async () => {
       try {
-        const { error } = await supabase.auth.signOut();
-        if (error) {
-          setError(error.message);
-          return;
-        }
+        // Call backend logout (optional — JWT is stateless)
+        await authApi.logout().catch(() => {}); // ignore errors, still clear local state
+      } finally {
+        // Always clear local token and user regardless of API response
+        removeToken();
+        removeUser();
         setMessage('Logged out successfully!');
-        // Redirect to login after a short delay
-        setTimeout(() => navigate('/login'), 1000);
-      } catch (err: any) {
-        setError('Something went wrong while logging out.');
+        setTimeout(() => navigate('/'), 1000);
       }
-      
     };
     signOut();
   }, [navigate]);

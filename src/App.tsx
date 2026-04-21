@@ -7,60 +7,27 @@ import Register from './components/auth/Register';
 import Login from './components/auth/Login';
 import ResetPassword from './components/auth/ResetPassword';
 import OTPVerification from './components/auth/OTPVerification';
-import React,{ useEffect } from 'react';
-import  supabase  from './supaBase/supabaseClient';
+import React, { useEffect } from 'react';
+import { isAuthenticated, removeToken, removeUser } from './api/apiClient';
 import Logout from './components/auth/Logout';
 
 const ProtectedRoute = ({ children }: { children: React.ReactNode }): React.ReactElement | null => {
   const navigate = useNavigate();
-  const [isAuthenticated, setIsAuthenticated] = React.useState<boolean | null>(null);
+  const [authChecked, setAuthChecked] = React.useState(false);
+  const [authenticated, setAuthenticated] = React.useState(false);
 
   useEffect(() => {
-    const checkSession = async () => {
-      try {
-        const { data: { session }, error } = await supabase.auth.getSession();
-
-        if (error) {
-          console.error('Session check error:', error);
-          setIsAuthenticated(false);
-          navigate('/', { replace: true });
-          return;
-        }
-
-        if (!session) {
-          // No session found - redirect to login (root path)
-          setIsAuthenticated(false);
-          navigate('/', { replace: true });
-        } else {
-          // Session exists - allow access
-          setIsAuthenticated(true);
-        }
-      } catch (err) {
-        console.error('Session check failed:', err);
-        setIsAuthenticated(false);
-        navigate('/', { replace: true });
-      }
-    };
-
-    checkSession();
-
-    // Listen for auth state changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === 'SIGNED_OUT' || !session) {
-        setIsAuthenticated(false);
-        navigate('/', { replace: true });
-      } else if (event === 'SIGNED_IN' || event === 'TOKEN_REFRESHED') {
-        setIsAuthenticated(true);
-      }
-    });
-
-    return () => {
-      subscription.unsubscribe();
-    };
+    if (isAuthenticated()) {
+      setAuthenticated(true);
+    } else {
+      removeToken();
+      removeUser();
+      navigate('/', { replace: true });
+    }
+    setAuthChecked(true);
   }, [navigate]);
 
-  // Show loading state while checking authentication
-  if (isAuthenticated === null) {
+  if (!authChecked) {
     return (
       <div style={{
         display: 'flex',
@@ -75,13 +42,12 @@ const ProtectedRoute = ({ children }: { children: React.ReactNode }): React.Reac
     );
   }
 
-  // Only render children if authenticated
-  return isAuthenticated ? <>{children}</> : null;
+  return authenticated ? <>{children}</> : null;
 };
 
 const AppRoutes = () => {
   const routes = useRoutes([
-    { path: '/', element: <Login /> }, // Login as default page
+    { path: '/', element: <Login /> },
     { path: '/logout', element: <Logout /> },
     { path: '/register', element: <Register /> },
     { path: '/verify-otp', element: <OTPVerification /> },
