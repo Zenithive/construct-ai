@@ -40,13 +40,31 @@ const OTPVerification = () => {
   }, [message]);
 
   const handleOtpChange = (index: number, value: string) => {
-    if (value.length > 1) return;
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
-    if (value && index < 5) {
-      inputRefs.current[index + 1]?.focus();
+    // Only allow digits
+    const cleaned = value.replace(/\D/g, '');
+    if (!cleaned) {
+      const newOtp = [...otp];
+      newOtp[index] = '';
+      setOtp(newOtp);
+      return;
     }
+    // Single digit typed normally
+    const newOtp = [...otp];
+    newOtp[index] = cleaned[0];
+    setOtp(newOtp);
+    if (index < 5) inputRefs.current[index + 1]?.focus();
+  };
+
+  const handlePaste = (e: React.ClipboardEvent) => {
+    e.preventDefault();
+    const pasted = e.clipboardData.getData('text').replace(/\D/g, '').slice(0, 6);
+    if (!pasted) return;
+    const newOtp = [...otp];
+    pasted.split('').forEach((char, i) => { newOtp[i] = char; });
+    setOtp(newOtp);
+    // Focus the next empty box, or the last one if all filled
+    const nextEmpty = pasted.length < 6 ? pasted.length : 5;
+    inputRefs.current[nextEmpty]?.focus();
   };
 
   const handleKeyDown = (index: number, e: React.KeyboardEvent) => {
@@ -159,6 +177,7 @@ const OTPVerification = () => {
                 value={digit}
                 onChange={(e) => handleOtpChange(index, e.target.value)}
                 onKeyDown={(e) => handleKeyDown(index, e)}
+                onPaste={handlePaste}
                 className="w-12 h-12 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none transition-colors"
                 disabled={isLoading}
               />

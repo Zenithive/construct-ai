@@ -259,7 +259,7 @@ const ChecklistComponent = () => {
       };
 
 
-      const response = await fetch('https://construction-ai-new-production.up.railway.app/api/v1/checklist/generate', {
+      const response = await fetch(`${process.env.REACT_APP_AI_API_URL}/api/v1/checklist/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -514,7 +514,7 @@ const ChecklistComponent = () => {
                   ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white'
                   : 'bg-white border-2 border-gray-100'
                 }`}>
-                {message.type === 'ai' ? renderChecklistContent(message.content) : <div className="whitespace-pre-wrap text-sm sm:text-base font-medium">{message.content}</div>}
+                {message.type === 'ai' ? renderChecklistContent(message.content) : <div className="whitespace-pre-wrap sm:text-base font-medium">{message.content}</div>}
 
                 {message.citations && (
                   <div className="mt-4 pt-4 border-t border-gray-200">

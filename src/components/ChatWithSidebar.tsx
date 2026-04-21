@@ -1,13 +1,60 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import ChatSidebar from './ChatSidebar';
 import ChatComponent from './ChatComponent';
-import { chatApi, getUser } from '../api/apiClient';
+import { chatApi } from '../api/apiClient';
+
+// ─── Types ────────────────────────────────────────────────────────────────────
+
+export type Source = {
+  url?: string;
+  title?: string;
+};
+
+export type Message = {
+  type: 'user' | 'ai';
+  content: string;
+  citations?: string[];
+  confidence?: number;
+  timestamp: Date;
+  sources?: Source[];
+};
+
+export type SessionStreamState = {
+  messages: Message[];
+  isLoading: boolean;
+  streamingSources: { db_sources: any[]; web_sources: any[] };
+};
+
+// ─── Component ────────────────────────────────────────────────────────────────
 
 const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories }) => {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const sidebarRef = useRef<any>(null);
   const isCreatingSession = useRef(false);
+
+  // Per-session state: messages + streaming status, keyed by sessionId
+  const [sessionStates, setSessionStates] = useState<Map<string, SessionStreamState>>(new Map());
+
+  // Per-session abort controllers so we can cancel if needed
+  const abortControllers = useRef<Map<string, AbortController>>(new Map());
+
+  // ── helpers ──────────────────────────────────────────────────────────────
+
+  const getSessionState = (sid: string): SessionStreamState =>
+    sessionStates.get(sid) ?? { messages: [], isLoading: false, streamingSources: { db_sources: [], web_sources: [] } };
+
+  const patchSessionState = useCallback((sid: string, patch: Partial<SessionStreamState> | ((prev: SessionStreamState) => Partial<SessionStreamState>)) => {
+    setSessionStates(prev => {
+      const current = prev.get(sid) ?? { messages: [], isLoading: false, streamingSources: { db_sources: [], web_sources: [] } };
+      const updates = typeof patch === 'function' ? patch(current) : patch;
+      const next = new Map(prev);
+      next.set(sid, { ...current, ...updates });
+      return next;
+    });
+  }, []);
+
+  // ── session init ─────────────────────────────────────────────────────────
 
   useEffect(() => {
     initializeSession();
@@ -18,14 +65,10 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
     try {
       const data = await chatApi.getSessions();
       const sessions = data.sessions || [];
-
       if (sessions.length > 0) {
-        // Load the most recent session
         setCurrentSessionId(sessions[0].id);
-      } else {
-        // No sessions yet — create one
-        await createNewSession();
       }
+      // No sessions — stay null, show empty state, don't auto-create
     } catch (err) {
       console.error('Failed to initialize session:', err);
     }
@@ -34,7 +77,6 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
   const createNewSession = async () => {
     if (isCreatingSession.current) return;
     isCreatingSession.current = true;
-
     try {
       const data = await chatApi.createSession('New Conversation');
       setCurrentSessionId(data.session.id);
@@ -48,9 +90,7 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
     }
   };
 
-  const handleNewChat = async () => {
-    await createNewSession();
-  };
+  const handleNewChat = async () => { await createNewSession(); };
 
   const handleMessageSent = () => {
     if (sidebarRef.current?.refreshSessions) {
@@ -65,19 +105,192 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
   const handleDeleteSession = async (sessionId: string) => {
     try {
       await chatApi.deleteSession(sessionId);
-
-      // If deleting current session, create a new one
+      // Cancel any in-flight stream for this session
+      abortControllers.current.get(sessionId)?.abort();
+      abortControllers.current.delete(sessionId);
+      setSessionStates(prev => { const n = new Map(prev); n.delete(sessionId); return n; });
       if (sessionId === currentSessionId) {
-        await handleNewChat();
+        // Switch to the next available session, or null if none left
+        const data = await chatApi.getSessions();
+        const remaining = (data.sessions || []).filter((s: any) => s.id !== sessionId);
+        setCurrentSessionId(remaining.length > 0 ? remaining[0].id : null);
+        if (sidebarRef.current?.refreshSessions) sidebarRef.current.refreshSessions();
       }
     } catch (err) {
       console.error('Failed to delete session:', err);
     }
   };
 
+  // ── streaming (lives here so it survives session switches) ───────────────
+
+  const runStream = useCallback(async (sessionId: string, query: string, region: string, category: string) => {
+    const saveMessage = async (msg: Message) => {
+      try {
+        await chatApi.saveMessage(sessionId, msg.type, msg.content, {
+          citations: msg.citations,
+          confidence: msg.confidence,
+          region,
+          category,
+          sources: msg.sources,
+        });
+        if (sidebarRef.current?.refreshSessions) sidebarRef.current.refreshSessions();
+      } catch (e) {
+        console.error('Failed to save message:', e);
+      }
+    };
+
+    // Add empty AI placeholder
+    patchSessionState(sessionId, prev => ({
+      isLoading: true,
+      streamingSources: { db_sources: [], web_sources: [] },
+      messages: [...prev.messages, { type: 'ai', content: '', timestamp: new Date() }],
+    }));
+
+    const controller = new AbortController();
+    abortControllers.current.set(sessionId, controller);
+
+    const MAX_RETRIES = 2;
+    let attempt = 0;
+
+    while (attempt <= MAX_RETRIES) {
+      try {
+        const response = await fetch(
+          `${process.env.REACT_APP_AI_API_URL}/api/v1/query/stream`,
+          {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ query, top_k: 10, include_sources: true }),
+            signal: controller.signal,
+          }
+        );
+
+        if (!response.ok) {
+          const errText = await response.text().catch(() => '');
+          throw new Error(`HTTP ${response.status}${errText ? ': ' + errText : ''}`);
+        }
+
+        const reader = response.body?.getReader();
+        const decoder = new TextDecoder();
+        if (!reader) throw new Error('No response body');
+
+        let previousContent = '';
+        let finalAIMessage: Message | null = null;
+        let currentSources: Source[] = [];
+        let buffer = '';
+        let receivedAnyContent = false;
+
+        const processLine = (line: string) => {
+          if (!line.startsWith('data: ') || line.includes('[DONE]')) return;
+          try {
+            const jsonData = JSON.parse(line.substring(6));
+
+            if (jsonData.type === 'metadata' && jsonData.data) {
+              const sources = [
+                ...(jsonData.data.db_sources || []),
+                ...(jsonData.data.web_sources || []),
+              ];
+              currentSources = sources;
+              patchSessionState(sessionId, prev => ({
+                streamingSources: {
+                  db_sources: jsonData.data.db_sources || [],
+                  web_sources: jsonData.data.web_sources || [],
+                },
+                messages: prev.messages.map((m, i) =>
+                  i === prev.messages.length - 1 && m.type === 'ai' ? { ...m, sources } : m
+                ),
+              }));
+            }
+
+            if (jsonData.type === 'content' && jsonData.data) {
+              const fullContent = jsonData.data.full_content || '';
+              if (fullContent && fullContent !== previousContent) {
+                receivedAnyContent = true;
+                previousContent = fullContent;
+                patchSessionState(sessionId, prev => ({
+                  messages: prev.messages.map((m, i) =>
+                    i === prev.messages.length - 1 && m.type === 'ai' ? { ...m, content: fullContent } : m
+                  ),
+                }));
+                finalAIMessage = { type: 'ai', content: fullContent, sources: currentSources, timestamp: new Date() };
+              }
+            }
+
+            if (jsonData.type === 'error') {
+              throw new Error(jsonData.message || 'Stream error from server');
+            }
+          } catch (e: any) {
+            if (e.message?.startsWith('Stream error')) throw e;
+            // JSON parse errors are non-fatal — skip the line
+          }
+        };
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) {
+            buffer.split('\n').forEach(processLine);
+            break;
+          }
+          buffer += decoder.decode(value, { stream: true });
+          const lines = buffer.split('\n');
+          buffer = lines.pop() || '';
+          lines.forEach(processLine);
+        }
+
+        if (finalAIMessage) {
+          await saveMessage(finalAIMessage);
+        } else if (!receivedAnyContent) {
+          // Stream completed but sent nothing — treat as an error worth retrying
+          throw new Error('Empty response from server');
+        }
+
+        // Success — exit the retry loop
+        break;
+
+      } catch (error: any) {
+        if (error.name === 'AbortError') return; // user navigated away, silent exit
+
+        attempt++;
+        console.error(`Stream attempt ${attempt} failed:`, error.message);
+
+        if (attempt <= MAX_RETRIES) {
+          // Show a retrying indicator in the AI bubble
+          patchSessionState(sessionId, prev => ({
+            messages: prev.messages.map((m, i) =>
+              i === prev.messages.length - 1 && m.type === 'ai'
+                ? { ...m, content: '' } // clear partial content before retry
+                : m
+            ),
+          }));
+          // Brief back-off before retrying
+          await new Promise(r => setTimeout(r, 1000 * attempt));
+        } else {
+          // All retries exhausted — show a helpful error
+          const isNetworkError = error.message?.includes('fetch') || error.message?.includes('network') || error.message?.toLowerCase().includes('failed to fetch');
+          const errorMsg = isNetworkError
+            ? 'Unable to reach the server. Please check your connection and try again.'
+            : `Something went wrong (${error.message}). Please try again.`;
+
+          patchSessionState(sessionId, prev => ({
+            messages: prev.messages.map((m, i) =>
+              i === prev.messages.length - 1 && m.type === 'ai'
+                ? { ...m, content: errorMsg }
+                : m
+            ),
+          }));
+        }
+      }
+    }
+
+    patchSessionState(sessionId, { isLoading: false, streamingSources: { db_sources: [], web_sources: [] } });
+    abortControllers.current.delete(sessionId);
+  }, [patchSessionState]);
+
+  // ── render ───────────────────────────────────────────────────────────────
+
+  const currentState = currentSessionId ? getSessionState(currentSessionId) : null;
+
   return (
-    <div className="flex h-full overflow-hidden bg-gray-100">
-      {/* Sidebar */}
+    <div className="flex h-full overflow-hidden bg-white">
       <ChatSidebar
         ref={sidebarRef}
         currentSessionId={currentSessionId}
@@ -88,19 +301,28 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
         onToggle={() => setIsSidebarOpen(!isSidebarOpen)}
       />
 
-      {/* Main Chat Area */}
       <div className="flex-1 flex flex-col overflow-hidden h-full">
         {currentSessionId ? (
           <ChatComponent
+            key={currentSessionId}
             selectedRegion={selectedRegion}
             selectedCategory={selectedCategory}
             regions={regions}
             categories={categories}
             sessionId={currentSessionId}
+            // lifted state
+            messages={currentState!.messages}
+            isLoading={currentState!.isLoading}
+            streamingSources={currentState!.streamingSources}
+            onSetMessages={(updater) =>
+              patchSessionState(currentSessionId, prev => ({
+                messages: typeof updater === 'function' ? updater(prev.messages) : updater,
+              }))
+            }
+            onRunStream={(query, region, category) => runStream(currentSessionId, query, region, category)}
             onMessageSent={handleMessageSent}
             onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)}
             isSidebarOpen={isSidebarOpen}
-            key={currentSessionId}
           />
         ) : (
           <div className="flex items-center justify-center h-full">

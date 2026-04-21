@@ -79,7 +79,7 @@ export const chatApi = {
     sessionId: string,
     message_type: 'user' | 'ai',
     content: string,
-    extras?: { citations?: any; confidence?: number; region?: string; category?: string }
+    extras?: { citations?: any; confidence?: number; region?: string; category?: string; sources?: any[] }
   ) =>
     request(`/api/chat/sessions/${sessionId}/messages`, {
       method: 'POST',
