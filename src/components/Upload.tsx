@@ -1,6 +1,6 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, FileText, X, Loader2, CheckCircle } from 'lucide-react';
-import { uploadApi } from '../api/apiClient';
+import { uploadApi, AI_BASE_URL } from '../api/apiClient';
 import axios from "axios";
 
 type UploadedFile = {
@@ -89,7 +89,7 @@ const UploadComponent = () => {
       const formData = new FormData();
       formData.append("file", file, file.name);
       const response = await axios.post(
-        `${process.env.REACT_APP_AI_API_URL}/api/v1/company/documents/upload`,
+        `${AI_BASE_URL}/api/v1/company/documents/upload`,
         formData
       );
       return response.data.status === "processing";

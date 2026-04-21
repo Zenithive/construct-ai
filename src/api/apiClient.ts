@@ -1,6 +1,7 @@
 // Central API client — replaces supabaseClient.tsx
 
 const BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+export const AI_BASE_URL = process.env.REACT_APP_AI_API_URL || 'https://construction-ai-new-production-9b17.up.railway.app';
 
 // ─── Token helpers ────────────────────────────────────────────────────────────
 export const getToken = (): string | null => localStorage.getItem('token');

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import ChatSidebar from './ChatSidebar';
 import ChatComponent from './ChatComponent';
-import { chatApi } from '../api/apiClient';
+import { chatApi, AI_BASE_URL } from '../api/apiClient';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -155,7 +155,7 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
     while (attempt <= MAX_RETRIES) {
       try {
         const response = await fetch(
-          `${process.env.REACT_APP_AI_API_URL}/api/v1/query/stream`,
+          `${AI_BASE_URL}/api/v1/query/stream`,
           {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },

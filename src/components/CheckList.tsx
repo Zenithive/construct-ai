@@ -1,6 +1,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { CheckSquare, MapPin, Send } from 'lucide-react';
+import { AI_BASE_URL } from '../api/apiClient';
 
 // Extend Window interface for custom properties
 declare global {
@@ -259,7 +260,7 @@ const ChecklistComponent = () => {
       };
 
 
-      const response = await fetch(`${process.env.REACT_APP_AI_API_URL}/api/v1/checklist/generate`, {
+      const response = await fetch(`${AI_BASE_URL}/api/v1/checklist/generate`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
