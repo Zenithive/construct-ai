@@ -13,8 +13,8 @@ const OTPVerification = () => {
   const searchParams = useSearchParams();
   const inputRefs = useRef<(HTMLInputElement | null)[]>([]);
 
-  const email = searchParams.get('email') || '';
-  const firstName = searchParams.get('firstName') || '';
+  const email = searchParams?.get('email') || '';
+  const firstName = searchParams?.get('firstName') || '';
 
   useEffect(() => { if (!email) { setError('Email not found. Please register again.'); setTimeout(() => router.push('/register'), 3000); } }, [email, router]);
   useEffect(() => { if (error) { const t = setTimeout(() => setError(null), 5000); return () => clearTimeout(t); } }, [error]);
