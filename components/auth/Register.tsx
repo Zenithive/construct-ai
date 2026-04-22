@@ -26,7 +26,9 @@ const Register = () => {
     setIsLoading(true);
     try {
       const data = await authApi.register(email, password, firstName, lastName) as any;
-      setToken(data.token); setUser(data.user);
+      setToken(data.token);
+      setUser(data.user);
+      document.cookie = `token=${data.token}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
       // Send OTP
       try { await fetch('/api/otp/send', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email }) }); } catch {}
       setMessage('Account created! Redirecting to verification...');

@@ -12,8 +12,16 @@ export const AI_BASE_URL =
 
 export const getToken = (): string | null =>
   typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-export const setToken = (t: string) => localStorage.setItem('token', t);
-export const removeToken = () => localStorage.removeItem('token');
+export const setToken = (t: string) => {
+  localStorage.setItem('token', t);
+  // Keep cookie in sync so middleware can read it server-side
+  document.cookie = `token=${t}; path=/; max-age=${7 * 24 * 60 * 60}; SameSite=Lax`;
+};
+export const removeToken = () => {
+  localStorage.removeItem('token');
+  // Clear the cookie too
+  document.cookie = 'token=; path=/; max-age=0; SameSite=Lax';
+};
 
 export const getUser = (): Record<string, unknown> | null => {
   if (typeof window === 'undefined') return null;

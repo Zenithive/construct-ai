@@ -21,7 +21,8 @@ const Login = () => {
     setError(null); setIsLoading(true);
     try {
       const data = await authApi.login(email, password) as any;
-      setToken(data.token); setUser(data.user);
+      setToken(data.token);
+      setUser(data.user);
       router.push('/dashboard');
     } catch (err: any) {
       setError(err.message || 'Invalid email or password.');
