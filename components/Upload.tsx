@@ -42,7 +42,7 @@ const UploadComponent = () => {
     try {
       const formData = new FormData();
       formData.append('file', file, file.name);
-      const response = await axios.post(`${AI_BASE_URL}/api/v1/company/documents/upload`, formData);
+      const response = await axios.post(`${AI_BASE_URL}/api/v1/documents/upload`, formData);
       return response.data.status === 'processing';
     } catch { return false; }
   };
