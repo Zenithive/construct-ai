@@ -1,32 +1,29 @@
 -- ConstructAI — PostgreSQL schema
--- Run against your Supabase / Postgres DB before starting the app.
+-- Run this against your Railway / Postgres DB before starting the app.
 
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 
--- Users (self-managed, replaces Supabase auth.users)
+-- Users
 CREATE TABLE IF NOT EXISTS users (
-  id            UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  email         TEXT NOT NULL UNIQUE,
-  password_hash TEXT NOT NULL,
-  first_name    TEXT NOT NULL,
-  last_name     TEXT NOT NULL,
-  is_verified   BOOLEAN NOT NULL DEFAULT FALSE,
-  created_at    TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  updated_at    TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  email        TEXT NOT NULL UNIQUE,
+  password     TEXT NOT NULL,
+  "firstName"  TEXT NOT NULL,
+  "lastName"   TEXT NOT NULL,
+  is_verified  BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);
 
--- OTPs
-CREATE TABLE IF NOT EXISTS otps (
+-- OTP Verifications
+CREATE TABLE IF NOT EXISTS otp_verifications (
   id          UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  user_id     UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
   email       TEXT NOT NULL,
-  otp_code    TEXT NOT NULL,
+  otp         TEXT NOT NULL,
   expires_at  TIMESTAMPTZ NOT NULL,
-  used        BOOLEAN NOT NULL DEFAULT FALSE,
   created_at  TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
-CREATE INDEX IF NOT EXISTS idx_otps_email ON otps (email);
+CREATE INDEX IF NOT EXISTS idx_otp_verifications_email ON otp_verifications (email);
 
 -- Chat sessions
 CREATE TABLE IF NOT EXISTS chat_sessions (
