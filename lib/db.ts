@@ -9,7 +9,7 @@ declare global {
   var _pgPool: Pool | undefined;
 }
 
-let pool: Pool | null = null;
+let pool: Pool | null = global._pgPool ?? null;
 
 function getPool(): Pool {
   if (pool) return pool;
@@ -19,7 +19,7 @@ function getPool(): Pool {
 
   console.log("🔄 Connecting to database...");
 
-  const pool = new Pool({
+  pool = new Pool({
     connectionString,
     ssl:
       process.env.NODE_ENV === "production"
@@ -38,19 +38,23 @@ function getPool(): Pool {
     console.error("❌ Database connection error:", err.message);
   });
 
+  if (process.env.NODE_ENV !== "production") {
+    global._pgPool = pool;
+  }
+
   return pool;
 }
 
-const pool: Pool = global._pgPool ?? createPool();
-if (process.env.NODE_ENV !== "production") global._pgPool = pool;
-
-export default pool;
+export default {
+  query: (text: string, params?: unknown[]) => getPool().query(text, params),
+  connect: () => getPool().connect(),
+};
 
 export async function query<T = Record<string, unknown>>(
   text: string,
   params?: unknown[],
 ): Promise<T[]> {
-  const result = await pool.query(text, params);
+  const result = await getPool().query(text, params);
   return result.rows as T[];
 }
 
