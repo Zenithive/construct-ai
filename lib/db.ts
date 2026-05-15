@@ -9,7 +9,11 @@ declare global {
   var _pgPool: Pool | undefined;
 }
 
-function createPool(): Pool {
+let pool: Pool | null = null;
+
+function getPool(): Pool {
+  if (pool) return pool;
+
   const connectionString = process.env.DATABASE_URL;
   if (!connectionString) throw new Error("DATABASE_URL is not set.");
 
