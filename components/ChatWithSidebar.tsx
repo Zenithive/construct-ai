@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import ChatSidebar from './ChatSidebar';
 import ChatComponent from './ChatComponent';
 import { chatApi, AI_BASE_URL, getUser, getUserId } from '@/services/apiClient';
-import { COUNTRY_LABEL_TO_CODE, DEFAULT_COUNTRY_CODE } from '@/constants/countries';
+import { COUNTRY_LABEL_TO_CODE, DEFAULT_COUNTRY_CODE, DEFAULT_COUNTRY_LABEL } from '@/constants/countries';
 
 export type Source = { url?: string; title?: string };
 export type Message = { type: 'user' | 'ai'; content: string; citations?: string[]; confidence?: number; timestamp: Date; sources?: Source[] };
@@ -16,6 +16,10 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
   const [selectedCountryCode, setSelectedCountryCode] = useState<string>(() => {
     const user = getUser();
     return COUNTRY_LABEL_TO_CODE[(user?.country as string) ?? ''] ?? DEFAULT_COUNTRY_CODE;
+  });
+  const [selectedCountryLabel, setSelectedCountryLabel] = useState<string>(() => {
+    const user = getUser();
+    return (user?.country as string) || DEFAULT_COUNTRY_LABEL;
   });
   const sidebarRef = useRef<any>(null);
   const isCreatingSession = useRef(false);
@@ -168,18 +172,18 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
     }
     patchSessionState(sessionId, { isLoading: false, streamingSources: { db_sources: [], web_sources: [] } });
     abortControllers.current.delete(sessionId);
-  }, [patchSessionState, selectedCountryCode]);
+  }, [patchSessionState, selectedCountryCode, selectedCountryLabel]);
 
   const currentState = currentSessionId ? getSessionState(currentSessionId) : null;
 
   return (
     <div className="flex h-full overflow-hidden bg-white">
-      <ChatSidebar ref={sidebarRef} currentSessionId={currentSessionId} onNewChat={createNewSession} onSelectSession={setCurrentSessionId} onDeleteSession={handleDeleteSession} isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} onCountryChange={setSelectedCountryCode} />
+      <ChatSidebar ref={sidebarRef} currentSessionId={currentSessionId} onNewChat={createNewSession} onSelectSession={setCurrentSessionId} onDeleteSession={handleDeleteSession} isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} onCountryChange={(code, label) => { setSelectedCountryCode(code); setSelectedCountryLabel(label); }} />
       <div className="flex-1 flex flex-col overflow-hidden h-full">
         {currentSessionId ? (
-          <ChatComponent key={currentSessionId} selectedRegion={selectedRegion} selectedCategory={selectedCategory} regions={regions} categories={categories} sessionId={currentSessionId} messages={currentState!.messages} isLoading={currentState!.isLoading} streamingSources={currentState!.streamingSources}
+          <ChatComponent key={currentSessionId} selectedCountry={selectedCountryLabel} selectedCategory={selectedCategory} regions={regions} categories={categories} sessionId={currentSessionId} messages={currentState!.messages} isLoading={currentState!.isLoading} streamingSources={currentState!.streamingSources}
             onSetMessages={(updater: any) => patchSessionState(currentSessionId, prev => ({ messages: typeof updater === 'function' ? updater(prev.messages) : updater }))}
-            onRunStream={(q: string, r: string, c: string) => runStream(currentSessionId, q, r, c)}
+            onRunStream={(q: string, c: string) => runStream(currentSessionId, q, selectedCountryLabel, c)}
             onMessageSent={() => sidebarRef.current?.refreshSessions?.()}
             onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} />
         ) : (

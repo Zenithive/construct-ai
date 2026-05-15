@@ -45,7 +45,7 @@ type ChatSidebarProps = {
   onDeleteSession: (sessionId: string) => void;
   isOpen: boolean;
   onToggle: () => void;
-  onCountryChange?: (code: string) => void;
+  onCountryChange?: (code: string, label: string) => void;
 };
 
 /* ─── Main sidebar ───────────────────────────────────────────────────────── */
@@ -110,7 +110,7 @@ const ChatSidebar = forwardRef(
         (k) => COUNTRIES[k].label === storedCountry,
       ) ?? "ENGLAND";
       setSelectedCountry(key);
-      onCountryChange?.(COUNTRIES[key].code);
+      onCountryChange?.(COUNTRIES[key].code, COUNTRIES[key].label);
     };
 
     const loadChatSessions = async () => {
@@ -155,7 +155,7 @@ const ChatSidebar = forwardRef(
     const handleSelectCountry = async (key: CountryKey) => {
       setSelectedCountry(key);
       setCountryDropdownOpen(false);
-      onCountryChange?.(COUNTRIES[key].code);
+      onCountryChange?.(COUNTRIES[key].code, COUNTRIES[key].label);
       try {
         await usersApi.updateCountry(COUNTRIES[key].label);
         // Keep localStorage in sync so the selection persists on reload
