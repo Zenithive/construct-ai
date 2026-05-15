@@ -18,6 +18,12 @@ export const COUNTRIES = {
     color: "bg-amber-50 text-amber-600",
     dot: "bg-amber-400",
   },
+  INDIA: {
+    code: "IND",
+    label: "India",
+    color: "bg-orange-50 text-orange-600",
+    dot: "bg-orange-400",
+  },
 } as const;
 
 export type CountryKey = keyof typeof COUNTRIES;
@@ -30,4 +36,12 @@ export const COUNTRY_LABEL_TO_CODE: Record<string, string> = Object.fromEntries(
   ]),
 );
 
+export const COUNTRY_CODE_TO_LABEL: Record<string, string> = Object.fromEntries(
+  (Object.keys(COUNTRIES) as CountryKey[]).map((k) => [
+    COUNTRIES[k].code,
+    COUNTRIES[k].label,
+  ]),
+);
+
 export const DEFAULT_COUNTRY_CODE = COUNTRIES.ENGLAND.code;
+export const DEFAULT_COUNTRY_LABEL = COUNTRIES.ENGLAND.label;

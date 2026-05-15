@@ -8,22 +8,22 @@ import { renderContent } from '@/utils/parseMessage';
 import type { Message, Source } from './ChatWithSidebar';
 
 type ChatComponentProps = {
-  selectedRegion: string; selectedCategory: string;
+  selectedCountry: string;
+  selectedCategory: string;
   regions: { value: string; label: string; flag?: string }[];
   categories: { value: string; label: string }[];
   sessionId: string; messages: Message[]; isLoading: boolean;
   streamingSources: { db_sources: any[]; web_sources: any[] };
   onSetMessages: (updater: Message[] | ((prev: Message[]) => Message[])) => void;
-  onRunStream: (query: string, region: string, category: string) => void;
+  onRunStream: (query: string, category: string) => void;
   onMessageSent: () => void; onToggleSidebar: () => void; isSidebarOpen: boolean;
 };
 
 const BUBBLE_MAX = 'max-w-[85%] sm:max-w-2xl';
 
-const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, sessionId, messages, isLoading, streamingSources, onSetMessages, onRunStream, onMessageSent, onToggleSidebar, isSidebarOpen }: ChatComponentProps) => {
+const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories, sessionId, messages, isLoading, streamingSources, onSetMessages, onRunStream, onMessageSent, onToggleSidebar, isSidebarOpen }: ChatComponentProps) => {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
-  const [region, setRegion] = useState(selectedRegion);
   const [category, setCategory] = useState(selectedCategory);
   const [isAutoScroll, setIsAutoScroll] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
@@ -95,7 +95,7 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
   }, [sessionId]);
 
   useEffect(() => { if (messages.length > 0 && isAutoScroll) scrollToBottom(); }, [messages, isAutoScroll]);
-  useEffect(() => { setRegion(selectedRegion); setCategory(selectedCategory); }, [selectedRegion, selectedCategory]);
+  useEffect(() => { setCategory(selectedCategory); }, [selectedCategory]);
 
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isProcessingRef.current || isLoading) return;
@@ -104,8 +104,8 @@ const ChatComponent = ({ selectedRegion, selectedCategory, regions, categories, 
     setInputMessage(''); setIsAutoScroll(true);
     const userMessage: Message = { type: 'user', content: query, timestamp: new Date() };
     onSetMessages(prev => [...prev, userMessage]);
-    try { await chatApi.saveMessage(sessionId, 'user', query, { region, category }); onMessageSent(); } catch (e) { console.error('Failed to save user message:', e); }
-    onRunStream(query, region, category);
+    try { await chatApi.saveMessage(sessionId, 'user', query, { region: selectedCountry, category }); onMessageSent(); } catch (e) { console.error('Failed to save user message:', e); }
+    onRunStream(query, category);
     isProcessingRef.current = false;
   };
 
