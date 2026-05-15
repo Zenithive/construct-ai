@@ -11,6 +11,7 @@ CREATE TABLE IF NOT EXISTS users (
   "firstName"  TEXT NOT NULL,
   "lastName"   TEXT NOT NULL,
   is_verified  BOOLEAN NOT NULL DEFAULT FALSE,
+  country      TEXT NOT NULL DEFAULT 'England',
   created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_users_email ON users (email);

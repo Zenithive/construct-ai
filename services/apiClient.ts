@@ -28,6 +28,11 @@ export const getUser = (): Record<string, unknown> | null => {
   const raw = localStorage.getItem('user');
   return raw ? JSON.parse(raw) : null;
 };
+export const getUserId = (): string | null => {
+  const user = getUser();
+  const id = user?.id;
+  return typeof id === 'string' && id.length > 0 ? id : null;
+};
 export const setUser = (u: Record<string, unknown>) => localStorage.setItem('user', JSON.stringify(u));
 export const removeUser = () => localStorage.removeItem('user');
 export const isAuthenticated = (): boolean => !!getToken();
@@ -81,13 +86,23 @@ export const chatApi = {
     }),
 };
 
+// ── Users API ─────────────────────────────────────────────────────────────────
+
+export const usersApi = {
+  updateCountry: (country: string) =>
+    request('/api/users/country', { method: 'PATCH', body: JSON.stringify({ country }) }),
+};
+
 // ── Upload API ────────────────────────────────────────────────────────────────
 
 export const uploadApi = {
   uploadFile: async (file: File) => {
     const token = getToken();
+    const userId = getUserId();
+    if (!userId) throw new Error('User not found. Please log in again.');
     const formData = new FormData();
     formData.append('file', file);
+    formData.append('user_id', userId);
     const res = await fetch('/api/upload', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },

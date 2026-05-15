@@ -7,6 +7,7 @@ export interface UserRow {
   firstName: string;       // DB column is "firstName" (camelCase)
   lastName: string;        // DB column is "lastName" (camelCase)
   is_verified: boolean;
+  country: string;         // DB column is "country"; default 'England'
   created_at: string;
 }
 

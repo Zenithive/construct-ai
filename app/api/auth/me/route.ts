@@ -12,11 +12,11 @@ export async function GET(req: NextRequest) {
   try {
     const authUser = requireAuth(req);
     const user = await queryOne<UserRow>(
-      'SELECT id, email, "firstName", "lastName", is_verified, created_at FROM users WHERE id = $1',
+      'SELECT id, email, "firstName", "lastName", is_verified, country, created_at FROM users WHERE id = $1',
       [authUser.userId]
     );
     if (!user) return err('User not found.', 404);
-    return ok({ user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, isVerified: user.is_verified, createdAt: user.created_at } });
+    return ok({ user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, isVerified: user.is_verified, country: user.country, createdAt: user.created_at } });
   } catch (e) {
     console.error('[GET /api/auth/me]', e);
     return err('Internal server error.', 500);

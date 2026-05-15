@@ -20,6 +20,11 @@ export async function POST(req: NextRequest) {
     const authUser = requireAuth(req);
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
+    const submittedUserId = formData.get('user_id');
+    if (submittedUserId != null && String(submittedUserId) !== authUser.userId) {
+      return err('user_id does not match authenticated user.', 403);
+    }
+    const userId = authUser.userId;
 
     if (!file) return err('No file provided. Use field name "file".');
     if (!isAllowedFileType(file.type)) return err('Invalid file type. Only PDF, DOC, DOCX allowed.');
@@ -27,21 +32,21 @@ export async function POST(req: NextRequest) {
 
     const ext = path.extname(file.name) || '.bin';
     const storedName = `${uuidv4()}${ext}`;
-    const userDir = path.join(UPLOAD_DIR, authUser.userId);
+    const userDir = path.join(UPLOAD_DIR, userId);
 
     await mkdir(userDir, { recursive: true });
     await writeFile(path.join(userDir, storedName), Buffer.from(await file.arrayBuffer()));
 
     const fileId = uuidv4();
-    const relativePath = `uploads/${authUser.userId}/${storedName}`;
+    const relativePath = `uploads/${userId}/${storedName}`;
 
     await query(
       `INSERT INTO uploaded_files (id, user_id, original_name, stored_name, mime_type, size_bytes, path, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, NOW())`,
-      [fileId, authUser.userId, file.name, storedName, file.type, file.size, relativePath]
+      [fileId, userId, file.name, storedName, file.type, file.size, relativePath]
     );
 
-    return ok({ file: { id: fileId, name: file.name, path: relativePath, size: file.size, mimeType: file.type } }, 201);
+    return ok({ user_id: userId, file: { id: fileId, name: file.name, path: relativePath, size: file.size, mimeType: file.type } }, 201);
   } catch (e) {
     console.error('[POST /api/upload]', e);
     return err('Internal server error.', 500);

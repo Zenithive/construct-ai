@@ -3,7 +3,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import ChatSidebar from './ChatSidebar';
 import ChatComponent from './ChatComponent';
-import { chatApi, AI_BASE_URL } from '@/services/apiClient';
+import { chatApi, AI_BASE_URL, getUser, getUserId } from '@/services/apiClient';
+import { COUNTRY_LABEL_TO_CODE, DEFAULT_COUNTRY_CODE } from '@/constants/countries';
 
 export type Source = { url?: string; title?: string };
 export type Message = { type: 'user' | 'ai'; content: string; citations?: string[]; confidence?: number; timestamp: Date; sources?: Source[] };
@@ -12,6 +13,10 @@ export type SessionStreamState = { messages: Message[]; isLoading: boolean; stre
 const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories }: any) => {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [selectedCountryCode, setSelectedCountryCode] = useState<string>(() => {
+    const user = getUser();
+    return COUNTRY_LABEL_TO_CODE[(user?.country as string) ?? ''] ?? DEFAULT_COUNTRY_CODE;
+  });
   const sidebarRef = useRef<any>(null);
   const isCreatingSession = useRef(false);
   const [sessionStates, setSessionStates] = useState<Map<string, SessionStreamState>>(new Map());
@@ -96,7 +101,20 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
 
     while (attempt <= MAX_RETRIES) {
       try {
-        const response = await fetch(`${AI_BASE_URL}/api/v1/query/stream`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ query, top_k: 10, include_sources: true }), signal: controller.signal });
+        const userId = getUserId();
+        if (!userId) throw new Error('User not found. Please log in again.');
+        const response = await fetch(`${AI_BASE_URL}/api/v1/query/stream`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            query,
+            top_k: 10,
+            include_sources: true,
+            country_code: selectedCountryCode,
+            user_id: userId,
+          }),
+          signal: controller.signal,
+        });
         if (!response.ok) throw new Error(`HTTP ${response.status}`);
 
         const reader = response.body?.getReader();
@@ -150,13 +168,13 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
     }
     patchSessionState(sessionId, { isLoading: false, streamingSources: { db_sources: [], web_sources: [] } });
     abortControllers.current.delete(sessionId);
-  }, [patchSessionState]);
+  }, [patchSessionState, selectedCountryCode]);
 
   const currentState = currentSessionId ? getSessionState(currentSessionId) : null;
 
   return (
     <div className="flex h-full overflow-hidden bg-white">
-      <ChatSidebar ref={sidebarRef} currentSessionId={currentSessionId} onNewChat={createNewSession} onSelectSession={setCurrentSessionId} onDeleteSession={handleDeleteSession} isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} />
+      <ChatSidebar ref={sidebarRef} currentSessionId={currentSessionId} onNewChat={createNewSession} onSelectSession={setCurrentSessionId} onDeleteSession={handleDeleteSession} isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} onCountryChange={setSelectedCountryCode} />
       <div className="flex-1 flex flex-col overflow-hidden h-full">
         {currentSessionId ? (
           <ChatComponent key={currentSessionId} selectedRegion={selectedRegion} selectedCategory={selectedCategory} regions={regions} categories={categories} sessionId={currentSessionId} messages={currentState!.messages} isLoading={currentState!.isLoading} streamingSources={currentState!.streamingSources}
