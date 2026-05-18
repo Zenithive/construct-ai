@@ -4,7 +4,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import ChatSidebar from './ChatSidebar';
 import ChatComponent from './ChatComponent';
 import { chatApi, AI_BASE_URL, getUser, getUserId, saveCurrentSessionId } from '@/services/apiClient';
-import { COUNTRY_LABEL_TO_CODE, DEFAULT_COUNTRY_CODE, DEFAULT_COUNTRY_LABEL } from '@/constants/countries';
+import { COUNTRY_LABEL_TO_CODE, DEFAULT_COUNTRY_CODE, DEFAULT_COUNTRY_LABEL} from '@/constants/countries';
 
 export type Source = { url?: string; title?: string };
 export type Message = { type: 'user' | 'ai'; content: string; citations?: string[]; confidence?: number; timestamp: Date; sources?: Source[] };
