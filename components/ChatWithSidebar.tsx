@@ -3,7 +3,7 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import ChatSidebar from './ChatSidebar';
 import ChatComponent from './ChatComponent';
-import { chatApi, AI_BASE_URL, getUser, getUserId } from '@/services/apiClient';
+import { chatApi, AI_BASE_URL, getUser, getUserId, saveCurrentSessionId } from '@/services/apiClient';
 import { COUNTRY_LABEL_TO_CODE, DEFAULT_COUNTRY_CODE, DEFAULT_COUNTRY_LABEL } from '@/constants/countries';
 
 export type Source = { url?: string; title?: string };
@@ -38,6 +38,10 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
       return next;
     });
   }, []);
+
+  useEffect(() => {
+    saveCurrentSessionId(currentSessionId);
+  }, [currentSessionId]);
 
   useEffect(() => {
     (async () => {
@@ -116,6 +120,7 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
             include_sources: true,
             country_code: selectedCountryCode,
             user_id: userId,
+            session_id: sessionId,
           }),
           signal: controller.signal,
         });

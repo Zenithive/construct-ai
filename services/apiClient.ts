@@ -23,6 +23,14 @@ export const removeToken = () => {
   document.cookie = 'token=; path=/; max-age=0; SameSite=Lax';
 };
 
+export const loadCurrentSessionId = (): string | null =>
+  typeof window !== 'undefined' ? localStorage.getItem('currentSessionId') : null;
+export const saveCurrentSessionId = (id: string | null) => {
+  if (typeof window === 'undefined') return;
+  if (id) localStorage.setItem('currentSessionId', id);
+  else localStorage.removeItem('currentSessionId');
+};
+
 export const getUser = (): Record<string, unknown> | null => {
   if (typeof window === 'undefined') return null;
   const raw = localStorage.getItem('user');

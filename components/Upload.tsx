@@ -2,7 +2,7 @@
 
 import React, { useState, useRef, useEffect } from 'react';
 import { Upload, FileText, X, Loader2, CheckCircle } from 'lucide-react';
-import { uploadApi, AI_BASE_URL, getUserId } from '@/services/apiClient';
+import { uploadApi, AI_BASE_URL, getUserId, loadCurrentSessionId } from '@/services/apiClient';
 import axios from 'axios';
 
 type UploadedFile = { id: string; name: string; size: number; type: string; uploadedAt: Date; status: 'uploading' | 'success' | 'error' };
@@ -42,9 +42,11 @@ const UploadComponent = () => {
     try {
       const userId = getUserId();
       if (!userId) throw new Error('User not found. Please log in again.');
+      const sessionId = loadCurrentSessionId();
       const formData = new FormData();
       formData.append('file', file, file.name);
       formData.append('user_id', userId);
+      if (sessionId) formData.append('session_id', sessionId);
       const response = await axios.post(`${AI_BASE_URL}/api/v1/documents/upload`, formData);
       return response.data.status === 'processing';
     } catch { return false; }
