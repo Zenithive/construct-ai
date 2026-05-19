@@ -10,9 +10,9 @@ type RegionDropdownProps = {
 
 export function RegionDropdown({ selected, onSelect }: RegionDropdownProps) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200/80 shadow-xl shadow-black/[0.06] overflow-hidden">
-      <div className="px-3 pt-3 pb-2 border-b border-gray-100">
-        <p className="text-[10px] font-semibold uppercase tracking-widest text-gray-400">
+    <div className="bg-white rounded-xl border border-black/[0.09] shadow-lg shadow-black/[0.06] overflow-hidden">
+      <div className="px-3 pt-3 pb-2 border-b border-black/[0.06]">
+        <p className="text-[10px] font-medium uppercase tracking-widest text-[#999]">
           Select Region
         </p>
       </div>
@@ -27,8 +27,8 @@ export function RegionDropdown({ selected, onSelect }: RegionDropdownProps) {
               onClick={() => onSelect(key)}
               className={`w-full flex items-center justify-between px-2 py-2 rounded-lg transition-all duration-100 text-left ${
                 isActive
-                  ? "bg-blue-50/80 ring-1 ring-inset ring-blue-100"
-                  : "hover:bg-gray-50"
+                  ? "bg-[#E1F5EE]/80 ring-1 ring-inset ring-[#5DCAA5]/20"
+                  : "hover:bg-[#f7f7f5]"
               }`}
             >
               <div className="flex items-center gap-2.5">
@@ -39,17 +39,17 @@ export function RegionDropdown({ selected, onSelect }: RegionDropdownProps) {
                 </span>
                 <div className="flex flex-col items-start gap-0.5">
                   <span
-                    className={`text-[11px] font-semibold leading-none ${isActive ? "text-blue-700" : "text-gray-800"}`}
+                    className={`text-[11px] font-semibold leading-none ${isActive ? "text-[#0F6E56]" : "text-[#111]"}`}
                   >
                     {code}
                   </span>
-                  <span className="text-[10px] text-gray-400 leading-none">
+                  <span className="text-[10px] text-[#999] leading-none">
                     {label}
                   </span>
                 </div>
               </div>
               {isActive && (
-                <Check className="h-3.5 w-3.5 text-blue-500 flex-shrink-0" />
+                <Check className="h-3.5 w-3.5 text-[#1D9E75] flex-shrink-0" />
               )}
             </button>
           );

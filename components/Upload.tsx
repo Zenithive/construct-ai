@@ -53,36 +53,36 @@ const UploadComponent = () => {
   };
 
   return (
-    <div className="h-full bg-white flex flex-col overflow-hidden">
-      <div className="flex-shrink-0 border-b border-gray-200 px-6 py-4">
-        <h1 className="text-xl font-semibold text-gray-900">Upload Documents</h1>
-        <p className="text-sm text-gray-500 mt-1">Upload construction documents for AI analysis</p>
+    <div className="h-full bg-[#fafaf8] flex flex-col overflow-hidden">
+      <div className="flex-shrink-0 border-b border-black/[0.09] bg-white px-6 py-4">
+        <h1 className="text-xl font-medium text-[#111]">Upload Documents</h1>
+        <p className="text-sm text-[#555] mt-1">Upload construction documents for AI analysis</p>
       </div>
       <div className="flex-1 overflow-y-auto p-6">
         <div className="max-w-3xl mx-auto">
           {error && <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-4 text-sm flex items-start space-x-2"><span className="mt-0.5">⚠</span><span>{error}</span></div>}
-          <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-gray-300 hover:border-gray-400 rounded-xl p-12 text-center cursor-pointer transition-colors bg-gray-50 hover:bg-gray-100">
+          <div onClick={() => fileInputRef.current?.click()} className="border-2 border-dashed border-black/[0.09] hover:border-[#5DCAA5]/50 rounded-xl p-12 text-center cursor-pointer transition-colors bg-white hover:bg-[#E1F5EE]/20">
             <input type="file" ref={fileInputRef} onChange={handleFileUpload} multiple accept=".pdf,.doc,.docx" disabled={isUploading} className="hidden" />
             <div className="flex flex-col items-center">
-              <div className="w-12 h-12 bg-blue-50 rounded-full flex items-center justify-center mb-3"><Upload className="h-6 w-6 text-blue-600" /></div>
-              <p className="text-sm font-medium text-gray-700 mb-1">{isUploading ? 'Uploading...' : 'Click to upload or drag and drop'}</p>
-              <p className="text-xs text-gray-500">PDF, DOC, or DOCX (max 10MB)</p>
+              <div className="w-12 h-12 bg-[#E1F5EE] rounded-xl flex items-center justify-center mb-3"><Upload className="h-6 w-6 text-[#1D9E75]" /></div>
+              <p className="text-sm font-medium text-[#111] mb-1">{isUploading ? 'Uploading...' : 'Click to upload or drag and drop'}</p>
+              <p className="text-xs text-[#999]">PDF, DOC, or DOCX (max 10MB)</p>
             </div>
           </div>
           {uploadedFiles.length > 0 && (
             <div className="mt-6">
-              <h3 className="text-sm font-semibold text-gray-700 mb-3">Uploaded files ({uploadedFiles.length})</h3>
+              <h3 className="text-sm font-medium text-[#555] mb-3">Uploaded files ({uploadedFiles.length})</h3>
               <div className="space-y-2">
                 {uploadedFiles.map(file => (
-                  <div key={file.id} className="flex items-center space-x-3 p-3 bg-white border border-gray-200 rounded-lg hover:bg-gray-50 transition-colors">
+                  <div key={file.id} className="flex items-center space-x-3 p-3 bg-white border border-black/[0.09] rounded-lg hover:bg-[#f7f7f5] transition-colors">
                     <div className="flex-shrink-0">
-                      {file.status === 'uploading' ? <Loader2 className="h-5 w-5 text-blue-600 animate-spin" /> : file.status === 'success' ? <CheckCircle className="h-5 w-5 text-green-600" /> : <FileText className="h-5 w-5 text-gray-400" />}
+                      {file.status === 'uploading' ? <Loader2 className="h-5 w-5 text-[#1D9E75] animate-spin" /> : file.status === 'success' ? <CheckCircle className="h-5 w-5 text-[#1D9E75]" /> : <FileText className="h-5 w-5 text-[#999]" />}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-gray-900 truncate">{file.name}</p>
-                      <p className="text-xs text-gray-500">{(file.size / 1024 / 1024).toFixed(2)} MB{file.status === 'uploading' && ' • Uploading...'}{file.status === 'success' && ' • Ready'}{file.status === 'error' && ' • Failed'}</p>
+                      <p className="text-sm font-medium text-[#111] truncate">{file.name}</p>
+                      <p className="text-xs text-[#999]">{(file.size / 1024 / 1024).toFixed(2)} MB{file.status === 'uploading' && ' • Uploading...'}{file.status === 'success' && ' • Ready'}{file.status === 'error' && ' • Failed'}</p>
                     </div>
-                    <button onClick={() => setUploadedFiles(prev => prev.filter(f => f.id !== file.id))} className="flex-shrink-0 p-1 text-gray-400 hover:text-red-500 hover:bg-red-50 rounded transition-colors" title="Remove">
+                    <button onClick={() => setUploadedFiles(prev => prev.filter(f => f.id !== file.id))} className="flex-shrink-0 p-1 text-[#999] hover:text-red-500 hover:bg-red-50 rounded transition-colors" title="Remove">
                       <X className="h-4 w-4" />
                     </button>
                   </div>

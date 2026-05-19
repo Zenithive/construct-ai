@@ -33,16 +33,16 @@ const ConfirmModal = ({
 
       {/* Modal */}
       <div
-        className="relative bg-white rounded-2xl shadow-xl w-full max-w-sm mx-4 p-6"
+        className="relative bg-white rounded-xl shadow-lg border border-black/[0.09] w-full max-w-sm mx-4 p-6"
         onClick={e => e.stopPropagation()}
       >
-        <h3 className="text-base font-semibold text-gray-900 mb-1">{title}</h3>
-        <p className="text-sm text-gray-500 mb-6">{message}</p>
+        <h3 className="text-base font-medium text-[#111] mb-1">{title}</h3>
+        <p className="text-sm text-[#555] mb-6">{message}</p>
 
         <div className="flex gap-3 justify-end">
           <button
             onClick={onCancel}
-            className="px-4 py-2 text-sm font-medium text-gray-700 bg-gray-100 hover:bg-gray-200 rounded-lg transition-colors"
+            className="px-4 py-2 text-sm font-medium text-[#555] bg-[#f7f7f5] hover:bg-[#f0f0ec] rounded-lg transition-colors"
           >
             {cancelText}
           </button>
@@ -51,7 +51,7 @@ const ConfirmModal = ({
             className={`px-4 py-2 text-sm font-medium text-white rounded-lg transition-colors ${
               variant === 'danger'
                 ? 'bg-red-500 hover:bg-red-600'
-                : 'bg-blue-600 hover:bg-blue-700'
+                : 'bg-[#1D9E75] hover:bg-[#0F6E56]'
             }`}
           >
             {confirmText}

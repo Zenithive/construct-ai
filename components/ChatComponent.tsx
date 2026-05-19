@@ -6,6 +6,8 @@ import { chatApi } from '@/services/apiClient';
 import UploadComponent from './Upload';
 import { renderContent } from '@/utils/parseMessage';
 import type { Message, Source } from './ChatWithSidebar';
+import { MessageActions, CopyIconButton } from './chat/MessageActions';
+import { ReferencesSection } from './chat/ReferencesSection';
 
 type ChatComponentProps = {
   selectedCountry: string;
@@ -43,7 +45,7 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
   const parsePDFCitations = (text: string) => {
     const markdownLinkPattern = /\[([^\]]+)]\((https?:\/\/[^)]+)\)/gi;
     return text.replace(markdownLinkPattern, (_match, linkText, url) =>
-      `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-blue-600 hover:text-blue-800 underline font-medium break-words inline-block max-w-full transition-colors">${linkText}</a>`
+      `<a href="${url}" target="_blank" rel="noopener noreferrer" class="text-[#1D9E75] hover:text-[#0F6E56] underline font-medium break-words inline-block max-w-full transition-colors">${linkText}</a>`
     );
   };
 
@@ -112,24 +114,24 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
   const showHistory = isLoadingHistory && messages.length === 0;
 
   return (
-    <div className="flex flex-col h-full min-h-0 overflow-hidden bg-white">
+    <div className="flex flex-col h-full min-h-0 overflow-hidden bg-[#fafaf8]">
       <div
         id="chat-scroll-area"
         ref={scrollContainerRef}
         onScroll={handleScroll}
-        className="relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-gray-50/50"
+        className="relative flex-1 min-h-0 overflow-y-auto overflow-x-hidden bg-[#fafaf8]"
         style={{ WebkitOverflowScrolling: 'touch' }}
       >
         <div className="mx-auto w-full max-w-3xl px-4 py-4 sm:px-5 sm:py-5">
           {showHistory ? (
             <div className="flex flex-col items-center justify-center py-16">
-              <div className="h-8 w-8 animate-spin rounded-full border-2 border-gray-200 border-t-blue-600" />
+              <div className="h-8 w-8 animate-spin rounded-full border-2 border-black/[0.09] border-t-[#1D9E75]" />
               <p className="mt-3 text-sm text-gray-500">Loading chat history...</p>
             </div>
           ) : messages.length === 0 ? (
             <div className="mx-auto max-w-lg py-10 text-center sm:py-14">
-              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-2xl border border-blue-100 bg-blue-50 shadow-sm">
-                <Search className="h-6 w-6 text-blue-600" />
+              <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-[#E1F5EE] bg-[#E1F5EE]">
+                <Search className="h-6 w-6 text-[#1D9E75]" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 sm:text-2xl">How can I help you today?</h3>
               <p className="mt-2 text-sm text-gray-500 sm:text-base">Ask about construction regulations, safety standards, or compliance requirements</p>
@@ -139,7 +141,7 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
                     key={index}
                     type="button"
                     onClick={() => setInputMessage(question)}
-                    className="rounded-xl border border-gray-200 bg-white px-3.5 py-3 text-left text-sm leading-snug text-gray-600 shadow-sm transition-colors hover:border-gray-300 hover:bg-gray-50"
+                    className="rounded-lg border border-black/[0.09] bg-white px-3.5 py-3 text-left text-sm leading-snug text-[#555] transition-colors hover:border-black/[0.14] hover:bg-[#f7f7f5]"
                   >
                     {question}
                   </button>
@@ -148,84 +150,86 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
             </div>
           ) : (
             <div className="flex flex-col gap-4 sm:gap-5">
-              {messages.map((message, index) => (
-                <div key={index}>
-                  {message.type === 'user' && (
-                    <div className="flex justify-end">
-                      <div
-                        className={`${BUBBLE_MAX} rounded-2xl rounded-br-md border border-blue-200/70 bg-blue-50 px-4 py-3 text-[15px] leading-relaxed text-gray-900 shadow-sm transition-shadow duration-150 hover:shadow`}
-                      >
-                        <div className="whitespace-pre-wrap">{message.content}</div>
-                      </div>
-                    </div>
-                  )}
-                  {message.type === 'ai' && (() => {
-                    const isLastAndStreaming = index === messages.length - 1 && isLoading && streamingSources.web_sources.length > 0;
-                    const webSources = isLastAndStreaming ? streamingSources.web_sources : (message.sources || []).filter((s: any) => s.url);
-                    if (webSources.length === 0) return null;
-                    return (
-                      <div className="mb-2 flex justify-start">
-                        <div className={BUBBLE_MAX}>
-                          {isLastAndStreaming && (
-                            <div className="mb-2 flex items-center gap-2 text-xs text-gray-500">
-                              <div className="h-3 w-3 animate-spin rounded-full border-2 border-blue-500 border-t-transparent" />
-                              <span>Searching {webSources.length} sources…</span>
-                            </div>
-                          )}
-                          <div className="flex flex-wrap gap-1.5">
-                            {webSources.map((source: any, idx: number) => {
-                              let domain = '';
-                              try { domain = source.url ? new URL(source.url).hostname.replace('www.', '') : ''; } catch { /* ignore */ }
-                              return (
-                                <a
-                                  key={`web-${idx}`}
-                                  href={source.url || '#'}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="inline-flex max-w-[11rem] flex-col gap-0.5 rounded-full border border-gray-200 bg-white px-2.5 py-1.5 text-left transition-colors hover:border-blue-200 hover:bg-blue-50/60"
-                                >
-                                  <span className="line-clamp-2 text-xs font-medium leading-tight text-gray-700">{source.title || 'Web Page'}</span>
-                                  <span className="truncate text-[10px] text-gray-400">{domain}</span>
-                                </a>
-                              );
-                            })}
-                          </div>
+              {messages.map((message, index) => {
+                const isThisStreaming = index === messages.length - 1 && isLoading;
+
+                return (
+                  <div key={index}>
+                    {/* ── User message ─────────────────────────────────── */}
+                    {message.type === 'user' && (
+                      <div className="group flex flex-col items-end">
+                        <div
+                          className={`${BUBBLE_MAX} rounded-2xl rounded-br-md border border-[#5DCAA5]/30 bg-[#E1F5EE] px-4 py-3 text-[15px] leading-relaxed text-[#111] shadow-sm transition-shadow duration-150 hover:shadow`}
+                        >
+                          <div className="whitespace-pre-wrap">{message.content}</div>
+                        </div>
+                        {/* Copy icon — visible on hover */}
+                        <div className="mt-1 flex items-center opacity-0 transition-opacity duration-150 group-hover:opacity-100">
+                          <CopyIconButton text={message.content} />
                         </div>
                       </div>
-                    );
-                  })()}
-                  {message.type === 'ai' && message.content && (
-                    <div className="flex justify-start">
-                      <div
-                        className={`${BUBBLE_MAX} rounded-2xl rounded-bl-md border border-gray-200/90 bg-white px-4 py-3 shadow-sm`}
-                      >
-                        {renderMessageContent(message.content, message.sources)}
-                        {message.citations && (
-                          <div className="mt-3 border-t border-gray-100 pt-3">
-                            <p className="mb-2 text-xs font-medium text-gray-500">Sources</p>
-                            {message.citations.map((citation, i) => (
-                              <div key={i} className="mb-1.5 border-l-2 border-blue-200 pl-3 text-xs text-gray-500">
-                                {renderCitationContent(citation)}
-                              </div>
-                            ))}
-                            {message.confidence && (
-                              <div className="mt-2 flex items-center gap-2">
-                                <div className="h-1 flex-1 rounded-full bg-gray-100">
-                                  <div className="h-1 rounded-full bg-blue-500 transition-all duration-300" style={{ width: `${message.confidence}%` }} />
-                                </div>
-                                <span className="shrink-0 text-xs text-gray-400">{message.confidence}% confidence</span>
-                              </div>
-                            )}
+                    )}
+
+                    {/* ── References section (above AI bubble) ─────────── */}
+                    {message.type === 'ai' && (() => {
+                      const isLastAndStreaming = isThisStreaming && streamingSources.web_sources.length > 0;
+                      const webSources = isLastAndStreaming
+                        ? streamingSources.web_sources
+                        : (message.sources || []).filter((s: any) => s.url);
+                      if (webSources.length === 0) return null;
+                      return (
+                        <div className="mb-3 flex justify-start">
+                          <div className={BUBBLE_MAX}>
+                            <ReferencesSection
+                              sources={webSources}
+                              isStreaming={isLastAndStreaming}
+                            />
                           </div>
-                        )}
+                        </div>
+                      );
+                    })()}
+
+                    {/* ── AI response bubble ────────────────────────────── */}
+                    {message.type === 'ai' && message.content && (
+                      <div className="flex justify-start">
+                        <div
+                          className={`${BUBBLE_MAX} rounded-2xl rounded-bl-md border border-black/[0.09] bg-white px-4 py-3 shadow-sm`}
+                        >
+                          {renderMessageContent(message.content, message.sources)}
+
+                          {/* Inline DB citations */}
+                          {message.citations && (
+                            <div className="mt-3 border-t border-gray-100 pt-3">
+                              <p className="mb-2 text-xs font-medium text-gray-500">Sources</p>
+                              {message.citations.map((citation, i) => (
+                                <div key={i} className="mb-1.5 border-l-2 border-[#5DCAA5] pl-3 text-xs text-[#555]">
+                                  {renderCitationContent(citation)}
+                                </div>
+                              ))}
+                              {message.confidence && (
+                                <div className="mt-2 flex items-center gap-2">
+                                  <div className="h-1 flex-1 rounded-full bg-gray-100">
+                                    <div className="h-1 rounded-full bg-[#1D9E75] transition-all duration-300" style={{ width: `${message.confidence}%` }} />
+                                  </div>
+                                  <span className="shrink-0 text-xs text-gray-400">{message.confidence}% confidence</span>
+                                </div>
+                              )}
+                            </div>
+                          )}
+
+                          {/* Action bar — hidden while streaming */}
+                          {!isThisStreaming && (
+                            <MessageActions content={message.content} />
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              ))}
+                    )}
+                  </div>
+                );
+              })}
               {isLoading && messages.length > 0 && messages[messages.length - 1].type === 'ai' && streamingSources.db_sources.length === 0 && streamingSources.web_sources.length === 0 && (
                 <div className="flex justify-start">
-                  <div className={`${BUBBLE_MAX} flex items-center gap-2 rounded-2xl rounded-bl-md border border-gray-200/90 bg-white px-4 py-3 shadow-sm`}>
+                  <div className={`${BUBBLE_MAX} flex items-center gap-2 rounded-2xl rounded-bl-md border border-black/[0.09] bg-white px-4 py-3 shadow-sm`}>
                     <div className="flex gap-1">
                       <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '0ms' }} />
                       <div className="h-2 w-2 animate-bounce rounded-full bg-gray-400" style={{ animationDelay: '150ms' }} />
@@ -251,9 +255,9 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
         )}
       </div>
 
-      <div className="sticky bottom-0 z-10 flex-shrink-0 border-t border-gray-200 bg-white/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-sm sm:px-4 sm:pb-4 sm:pt-3">
+      <div className="sticky bottom-0 z-10 flex-shrink-0 border-t border-black/[0.09] bg-[#fafaf8]/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-sm sm:px-4 sm:pb-4 sm:pt-3">
         <div className="mx-auto w-full max-w-3xl">
-          <div className="flex items-end gap-2 rounded-2xl border border-gray-200 bg-white p-1.5 pl-3 shadow-sm transition-[border-color,box-shadow] focus-within:border-gray-300 focus-within:shadow-md sm:pl-3.5">
+          <div className="flex items-end gap-2 rounded-xl border border-black/[0.09] bg-white p-1.5 pl-3 shadow-sm transition-[border-color,box-shadow] focus-within:border-black/[0.14] focus-within:shadow-md sm:pl-3.5">
             <textarea
               ref={textareaRef}
               rows={1}
@@ -265,14 +269,14 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
                   void handleSendMessage();
                 }
               }}
-              placeholder="Message ConstructAI..."
-              className="max-h-[200px] min-h-[44px] flex-1 resize-none bg-transparent py-2.5 text-[15px] leading-snug text-gray-900 placeholder:text-gray-400 focus:outline-none"
+              placeholder="Message ConstructionAI..."
+              className="max-h-[200px] min-h-[44px] flex-1 resize-none bg-transparent py-2.5 text-[15px] leading-snug text-[#111] placeholder:text-[#999] focus:outline-none"
             />
             <div className="flex shrink-0 items-center gap-1 pb-1 pr-0.5">
               <button
                 type="button"
                 onClick={() => setShowUploadModal(true)}
-                className="rounded-xl p-2 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-800"
+                className="rounded-lg p-2 text-[#999] transition-colors hover:bg-black/[0.05] hover:text-[#555]"
                 title="Upload documents"
               >
                 <Paperclip className="h-5 w-5" />
@@ -281,19 +285,19 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
                 type="button"
                 onClick={() => void handleSendMessage()}
                 disabled={!inputMessage.trim() || isLoading}
-                className="flex h-9 w-9 items-center justify-center rounded-xl bg-blue-600 text-white shadow-sm transition-colors hover:bg-blue-700 disabled:cursor-not-allowed disabled:opacity-40"
+                className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1D9E75] text-white shadow-sm transition-colors hover:bg-[#0F6E56] disabled:cursor-not-allowed disabled:opacity-40"
               >
                 <Send className="h-4 w-4" />
               </button>
             </div>
           </div>
-          <p className="mt-2 text-center text-xs text-gray-400">ConstructAI can make mistakes. Verify important information.</p>
+          <p className="mt-2 text-center text-xs text-[#999]">ConstructionAI can make mistakes. Verify important information.</p>
         </div>
       </div>
 
       {showUploadModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-2xl bg-white shadow-2xl">
+          <div className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white shadow-xl border border-black/[0.09]">
             <button type="button" onClick={() => setShowUploadModal(false)} className="absolute right-4 top-4 z-10 text-gray-500 transition-colors hover:text-gray-700">
               <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
             </button>

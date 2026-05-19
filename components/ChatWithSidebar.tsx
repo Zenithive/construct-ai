@@ -182,7 +182,7 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
   const currentState = currentSessionId ? getSessionState(currentSessionId) : null;
 
   return (
-    <div className="flex h-full overflow-hidden bg-white">
+    <div className="flex h-full overflow-hidden bg-[#fafaf8]">
       <ChatSidebar ref={sidebarRef} currentSessionId={currentSessionId} onNewChat={createNewSession} onSelectSession={setCurrentSessionId} onDeleteSession={handleDeleteSession} isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} onCountryChange={(code, label) => { setSelectedCountryCode(code); setSelectedCountryLabel(label); }} />
       <div className="flex-1 flex flex-col overflow-hidden h-full">
         {currentSessionId ? (
@@ -193,7 +193,7 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
             onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} />
         ) : (
           <div className="flex items-center justify-center h-full">
-            <div className="animate-spin rounded-full h-12 w-12 border-4 border-blue-600 border-t-transparent" />
+            <div className="animate-spin rounded-full h-12 w-12 border-4 border-[#E1F5EE] border-t-[#1D9E75]" />
           </div>
         )}
       </div>
