@@ -20,11 +20,25 @@ export async function GET(req: NextRequest, { params }: { params: { id: string }
     if (!session) return err('Session not found.', 404);
 
     const messages = await query<ChatMessageRow>(
-      `SELECT id, message_type, content, citations, confidence, region, category, sources, created_at
+      `SELECT id, message_type, content, citations, confidence, region, category, sources, feedback_type, feedback_reason, created_at
        FROM chat_messages WHERE session_id = $1 ORDER BY created_at ASC`,
       [params.id]
     );
-    return ok({ messages: messages.map(m => ({ id: m.id, message_type: m.message_type, content: m.content, citations: m.citations ?? undefined, confidence: m.confidence ?? undefined, region: m.region ?? undefined, category: m.category ?? undefined, sources: m.sources ?? undefined, created_at: m.created_at })) });
+    return ok({
+      messages: messages.map(m => ({
+        id: m.id,
+        message_type: m.message_type,
+        content: m.content,
+        citations: m.citations ?? undefined,
+        confidence: m.confidence ?? undefined,
+        region: m.region ?? undefined,
+        category: m.category ?? undefined,
+        sources: m.sources ?? undefined,
+        feedback_type: m.feedback_type ?? undefined,
+        feedback_reason: m.feedback_reason ?? undefined,
+        created_at: m.created_at,
+      })),
+    });
   } catch (e) {
     console.error('[GET /api/chat/sessions/[id]/messages]', e);
     return err('Internal server error.', 500);

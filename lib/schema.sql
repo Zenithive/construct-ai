@@ -38,17 +38,19 @@ CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON chat_sessions (user_id);
 
 -- Chat messages
 CREATE TABLE IF NOT EXISTS chat_messages (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  session_id   UUID NOT NULL REFERENCES chat_sessions (id) ON DELETE CASCADE,
-  user_id      UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-  message_type TEXT NOT NULL CHECK (message_type IN ('user', 'ai')),
-  content      TEXT NOT NULL,
-  citations    JSONB,
-  confidence   FLOAT,
-  region       TEXT,
-  category     TEXT,
-  sources      JSONB,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  session_id      UUID NOT NULL REFERENCES chat_sessions (id) ON DELETE CASCADE,
+  user_id         UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  message_type    TEXT NOT NULL CHECK (message_type IN ('user', 'ai')),
+  content         TEXT NOT NULL,
+  citations       JSONB,
+  confidence      FLOAT,
+  region          TEXT,
+  category        TEXT,
+  sources         JSONB,
+  feedback_type   TEXT CHECK (feedback_type IN ('Like', 'Dislike')),
+  feedback_reason TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages (session_id);
 
