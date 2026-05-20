@@ -2,7 +2,7 @@
 
 -- Add feedback columns directly to chat_messages
 ALTER TABLE chat_messages
-  ADD COLUMN IF NOT EXISTS feedback_type   TEXT CHECK (feedback_type IN ('Like', 'Dislike')),
+  ADD COLUMN IF NOT EXISTS feedback_type   TEXT CHECK (feedback_type IS NULL OR feedback_type IN ('like', 'dislike')),
   ADD COLUMN IF NOT EXISTS feedback_reason TEXT;
 
 -- Migrate any existing feedback data

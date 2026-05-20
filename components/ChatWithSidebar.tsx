@@ -7,7 +7,17 @@ import { chatApi, AI_BASE_URL, getUser, getUserId, saveCurrentSessionId } from '
 import { COUNTRY_LABEL_TO_CODE, DEFAULT_COUNTRY_CODE, DEFAULT_COUNTRY_LABEL} from '@/constants/countries';
 
 export type Source = { url?: string; title?: string };
-export type Message = { id?: string; type: 'user' | 'ai'; content: string; citations?: string[]; confidence?: number; timestamp: Date; sources?: Source[] };
+export type Message = {
+  id?: string;
+  type: 'user' | 'ai';
+  content: string;
+  citations?: string[];
+  confidence?: number;
+  timestamp: Date;
+  sources?: Source[];
+  feedback_type?: 'like' | 'dislike' | null;
+  feedback_reason?: string | null;
+};
 export type SessionStreamState = { messages: Message[]; isLoading: boolean; streamingSources: { db_sources: any[]; web_sources: any[] } };
 
 const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories }: any) => {

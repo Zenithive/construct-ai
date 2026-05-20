@@ -5,6 +5,7 @@ import { Send, Search, ArrowDown, Upload as Paperclip } from 'lucide-react';
 import { chatApi } from '@/services/apiClient';
 import UploadComponent from './Upload';
 import { renderContent } from '@/utils/parseMessage';
+import { normalizeFeedbackType } from '@/lib/feedback';
 import type { Message, Source } from './ChatWithSidebar';
 import { MessageActions, CopyIconButton } from './chat/MessageActions';
 import { ReferencesSection } from './chat/ReferencesSection';
@@ -89,7 +90,17 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
         setIsLoadingHistory(true);
         const data = await chatApi.getMessages(sessionId) as any;
         if (!data?.messages) return;
-        const loaded: Message[] = data.messages.map((msg: any) => ({ id: msg.id, type: msg.message_type as 'user' | 'ai', content: msg.content, citations: msg.citations || undefined, confidence: msg.confidence || undefined, sources: msg.sources || undefined, timestamp: new Date(msg.created_at) }));
+        const loaded: Message[] = data.messages.map((msg: any) => ({
+          id: msg.id,
+          type: msg.message_type as 'user' | 'ai',
+          content: msg.content,
+          citations: msg.citations || undefined,
+          confidence: msg.confidence || undefined,
+          sources: msg.sources || undefined,
+          timestamp: new Date(msg.created_at),
+          feedback_type: normalizeFeedbackType(msg.feedback_type) ?? undefined,
+          feedback_reason: msg.feedback_reason ?? undefined,
+        }));
         onSetMessages(loaded);
       } catch (err: any) { console.error('Failed to load chat history:', err?.message || err); }
       finally { setIsLoadingHistory(false); historyLoadedRef.current = true; }
@@ -219,7 +230,12 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
 
                           {/* Action bar — hidden while streaming */}
                           {!isThisStreaming && (
-                            <MessageActions content={message.content} messageId={message.id} sessionId={sessionId} />
+                            <MessageActions
+                              content={message.content}
+                              messageId={message.id}
+                              sessionId={sessionId}
+                              initialFeedbackType={message.feedback_type ?? null}
+                            />
                           )}
                         </div>
                       </div>

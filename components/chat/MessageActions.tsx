@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { Copy, ThumbsUp, ThumbsDown, Check, X } from 'lucide-react';
 import { chatApi } from '@/services/apiClient';
 
@@ -137,16 +137,24 @@ export function MessageActions({
   content,
   messageId,
   sessionId,
+  initialFeedbackType,
 }: {
   content: string;
   messageId?: string;
   sessionId?: string;
+  /** From chat history — restores thumbs state */
+  initialFeedbackType?: 'like' | 'dislike' | null;
 }) {
   const [copied, setCopied] = useState(false);
-  const [liked, setLiked] = useState(false);
-  const [disliked, setDisliked] = useState(false);
+  const [liked, setLiked] = useState(initialFeedbackType === 'like');
+  const [disliked, setDisliked] = useState(initialFeedbackType === 'dislike');
   const [likeState, setLikeState] = useState<FeedbackState>('idle');
   const [showModal, setShowModal] = useState(false);
+
+  useEffect(() => {
+    setLiked(initialFeedbackType === 'like');
+    setDisliked(initialFeedbackType === 'dislike');
+  }, [initialFeedbackType, messageId]);
 
   const handleCopy = useCallback(async () => {
     await copyToClipboard(content);
@@ -161,7 +169,7 @@ export function MessageActions({
     setLikeState('submitting');
     if (messageId && sessionId) {
       try {
-        await chatApi.submitFeedback(messageId, sessionId, 'Like');
+        await chatApi.submitFeedback(messageId, sessionId, 'like');
         setLikeState('done');
       } catch (e) {
         console.error('Failed to submit like feedback:', e);
@@ -183,7 +191,7 @@ export function MessageActions({
     setLikeState('idle');
     if (messageId && sessionId) {
       try {
-        await chatApi.submitFeedback(messageId, sessionId, 'Dislike', reason);
+        await chatApi.submitFeedback(messageId, sessionId, 'dislike', reason);
       } catch (e) {
         console.error('Failed to submit dislike feedback:', e);
       }
