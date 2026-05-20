@@ -169,7 +169,7 @@ export function MessageActions({
     setLikeState('submitting');
     if (messageId && sessionId) {
       try {
-        await chatApi.submitFeedback(messageId, sessionId, 'like');
+        await chatApi.submitFeedback(messageId, sessionId, 'Like');
         setLikeState('done');
       } catch (e) {
         console.error('Failed to submit like feedback:', e);
@@ -191,7 +191,7 @@ export function MessageActions({
     setLikeState('idle');
     if (messageId && sessionId) {
       try {
-        await chatApi.submitFeedback(messageId, sessionId, 'dislike', reason);
+        await chatApi.submitFeedback(messageId, sessionId, 'Dislike', reason);
       } catch (e) {
         console.error('Failed to submit dislike feedback:', e);
       }

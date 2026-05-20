@@ -95,7 +95,7 @@ export const chatApi = {
   submitFeedback: (
     messageId: string,
     sessionId: string,
-    feedback_type: 'like' | 'dislike',
+    feedback_type: 'Like' | 'Dislike',
     feedback_reason?: string
   ) =>
     request(`/api/chat/messages/${messageId}/feedback`, {

@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS chat_messages (
   region          TEXT,
   category        TEXT,
   sources         JSONB,
-  feedback_type   TEXT CHECK (feedback_type IN ('like', 'dislike')),
+  feedback_type   TEXT CHECK (feedback_type IN ('Like', 'Dislike')),
   feedback_reason TEXT,
   created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
