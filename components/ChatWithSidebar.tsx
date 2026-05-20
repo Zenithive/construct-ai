@@ -7,7 +7,7 @@ import { chatApi, AI_BASE_URL, getUser, getUserId, saveCurrentSessionId } from '
 import { COUNTRY_LABEL_TO_CODE, DEFAULT_COUNTRY_CODE, DEFAULT_COUNTRY_LABEL} from '@/constants/countries';
 
 export type Source = { url?: string; title?: string };
-export type Message = { type: 'user' | 'ai'; content: string; citations?: string[]; confidence?: number; timestamp: Date; sources?: Source[] };
+export type Message = { id?: string; type: 'user' | 'ai'; content: string; citations?: string[]; confidence?: number; timestamp: Date; sources?: Source[] };
 export type SessionStreamState = { messages: Message[]; isLoading: boolean; streamingSources: { db_sources: any[]; web_sources: any[] } };
 
 const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories }: any) => {
@@ -95,7 +95,15 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
   const runStream = useCallback(async (sessionId: string, query: string, region: string, category: string) => {
     const saveMessage = async (msg: Message) => {
       try {
-        await chatApi.saveMessage(sessionId, msg.type, msg.content, { citations: msg.citations, confidence: msg.confidence, region, category, sources: msg.sources });
+        const result = await chatApi.saveMessage(sessionId, msg.type, msg.content, { citations: msg.citations, confidence: msg.confidence, region, category, sources: msg.sources }) as any;
+        const savedId: string | undefined = result?.message?.id;
+        if (savedId) {
+          patchSessionState(sessionId, prev => ({
+            messages: prev.messages.map((m, i) =>
+              i === prev.messages.length - 1 && m.type === 'ai' ? { ...m, id: savedId } : m
+            ),
+          }));
+        }
         sidebarRef.current?.refreshSessions?.();
       } catch (e) { console.error('Failed to save message:', e); }
     };

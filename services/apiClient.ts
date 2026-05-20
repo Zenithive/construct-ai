@@ -92,6 +92,16 @@ export const chatApi = {
       method: 'POST',
       body: JSON.stringify({ message_type, content, ...extras }),
     }),
+  submitFeedback: (
+    messageId: string,
+    sessionId: string,
+    feedback_type: 'like' | 'dislike',
+    feedback_reason?: string
+  ) =>
+    request(`/api/chat/messages/${messageId}/feedback`, {
+      method: 'POST',
+      body: JSON.stringify({ session_id: sessionId, feedback_type, feedback_reason: feedback_reason ?? '' }),
+    }),
 };
 
 // ── Users API ─────────────────────────────────────────────────────────────────

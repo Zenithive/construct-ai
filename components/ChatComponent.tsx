@@ -89,7 +89,7 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
         setIsLoadingHistory(true);
         const data = await chatApi.getMessages(sessionId) as any;
         if (!data?.messages) return;
-        const loaded: Message[] = data.messages.map((msg: any) => ({ type: msg.message_type as 'user' | 'ai', content: msg.content, citations: msg.citations || undefined, confidence: msg.confidence || undefined, sources: msg.sources || undefined, timestamp: new Date(msg.created_at) }));
+        const loaded: Message[] = data.messages.map((msg: any) => ({ id: msg.id, type: msg.message_type as 'user' | 'ai', content: msg.content, citations: msg.citations || undefined, confidence: msg.confidence || undefined, sources: msg.sources || undefined, timestamp: new Date(msg.created_at) }));
         onSetMessages(loaded);
       } catch (err: any) { console.error('Failed to load chat history:', err?.message || err); }
       finally { setIsLoadingHistory(false); historyLoadedRef.current = true; }
@@ -219,7 +219,7 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
 
                           {/* Action bar — hidden while streaming */}
                           {!isThisStreaming && (
-                            <MessageActions content={message.content} />
+                            <MessageActions content={message.content} messageId={message.id} sessionId={sessionId} />
                           )}
                         </div>
                       </div>
