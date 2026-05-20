@@ -64,33 +64,47 @@ const OTPVerification = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 p-4">
-      <div className="bg-white rounded-2xl shadow-xl p-8 w-full max-w-md">
-        <div className="text-center mb-6">
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">Verify Your Email</h2>
-          <p className="text-gray-600 text-sm">We&apos;ve sent a 6-digit code to</p>
-          <p className="text-blue-600 font-medium">{email}</p>
-        </div>
-        {error && <div className="bg-red-100 text-red-700 p-3 rounded-md mb-4 text-sm">{error}</div>}
-        {message && <div className="bg-green-100 text-green-700 p-3 rounded-md mb-4 text-sm">{message}</div>}
-        <form onSubmit={handleVerify} className="space-y-6">
-          <div className="flex justify-center space-x-2">
-            {otp.map((digit, index) => (
-              <input key={index} ref={el => { if (el) inputRefs.current[index] = el; }} type="text" inputMode="numeric" pattern="[0-9]*" maxLength={1} value={digit} onChange={e => handleOtpChange(index, e.target.value)} onKeyDown={e => handleKeyDown(index, e)} onPaste={handlePaste} className="w-12 h-12 text-center text-lg font-bold border-2 border-gray-300 rounded-lg focus:border-blue-500 focus:outline-none transition-colors" disabled={isLoading} />
-            ))}
+    <div className="min-h-screen bg-[#fafaf8] flex flex-col items-center justify-center p-4">
+      <div className="w-full max-w-md">
+        {/* Logo */}
+        <div className="flex items-center justify-center gap-2.5 mb-8">
+          <div className="w-8 h-8 bg-[#1D9E75] rounded-lg flex items-center justify-center flex-shrink-0">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M3 21h18M3 7v14M21 7v14M6 21V11M10 21V11M14 21V11M18 21V11M3 7l9-4 9 4" />
+            </svg>
           </div>
-          <button type="submit" disabled={isLoading || otp.join('').length !== 6} className={`w-full py-3 px-4 rounded-lg font-medium transition-all duration-200 ${isLoading || otp.join('').length !== 6 ? 'bg-gray-300 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700'} text-white`}>
-            {isLoading ? 'Verifying...' : 'Verify OTP'}
-          </button>
-        </form>
-        <div className="mt-6 text-center">
-          <p className="text-gray-600 text-sm mb-2">Didn&apos;t receive the code?</p>
-          <button onClick={handleResend} disabled={isResending} className="text-blue-600 hover:text-blue-800 font-medium text-sm disabled:text-gray-400">
-            {isResending ? 'Resending...' : 'Resend OTP'}
-          </button>
+          <span className="text-[15px] font-medium text-[#111]">
+            Construction<span className="text-[#1D9E75]">AI</span><span className="text-[#999]">.chat</span>
+          </span>
         </div>
-        <div className="mt-4 text-center">
-          <button onClick={() => router.push('/register')} className="text-gray-500 hover:text-gray-700 text-sm">← Back to Registration</button>
+
+        <div className="bg-white border border-black/[0.09] rounded-xl p-8 shadow-sm">
+          <div className="text-center mb-6">
+            <h2 className="text-2xl font-medium text-[#111] mb-1.5 tracking-tight">Verify your email</h2>
+            <p className="text-[#555] text-sm">We&apos;ve sent a 6-digit code to</p>
+            <p className="text-[#1D9E75] font-medium text-sm mt-0.5">{email}</p>
+          </div>
+          {error && <div className="bg-red-50 border border-red-200 text-red-700 p-3 rounded-lg mb-4 text-sm">{error}</div>}
+          {message && <div className="bg-[#E1F5EE] border border-[#5DCAA5]/40 text-[#0F6E56] p-3 rounded-lg mb-4 text-sm">{message}</div>}
+          <form onSubmit={handleVerify} className="space-y-6">
+            <div className="flex justify-center space-x-2">
+              {otp.map((digit, index) => (
+                <input key={index} ref={el => { if (el) inputRefs.current[index] = el; }} type="text" inputMode="numeric" pattern="[0-9]*" maxLength={1} value={digit} onChange={e => handleOtpChange(index, e.target.value)} onKeyDown={e => handleKeyDown(index, e)} onPaste={handlePaste} className="w-12 h-12 text-center text-lg font-medium text-[#111] border border-black/[0.09] rounded-lg focus:border-[#1D9E75] focus:ring-2 focus:ring-[#E1F5EE] focus:outline-none bg-[#f7f7f5] transition-colors" disabled={isLoading} />
+              ))}
+            </div>
+            <button type="submit" disabled={isLoading || otp.join('').length !== 6} className={`w-full py-3 px-4 rounded-lg font-medium text-sm transition-colors duration-150 ${isLoading || otp.join('').length !== 6 ? 'bg-[#f0f0ec] text-[#999] cursor-not-allowed' : 'bg-[#1D9E75] hover:bg-[#0F6E56] text-white'}`}>
+              {isLoading ? 'Verifying...' : 'Verify OTP'}
+            </button>
+          </form>
+          <div className="mt-6 text-center">
+            <p className="text-[#555] text-sm mb-2">Didn&apos;t receive the code?</p>
+            <button onClick={handleResend} disabled={isResending} className="text-[#1D9E75] hover:text-[#0F6E56] font-medium text-sm disabled:text-[#999] transition-colors">
+              {isResending ? 'Resending...' : 'Resend OTP'}
+            </button>
+          </div>
+          <div className="mt-4 text-center">
+            <button onClick={() => router.push('/register')} className="text-[#999] hover:text-[#555] text-sm transition-colors">← Back to Registration</button>
+          </div>
         </div>
       </div>
     </div>

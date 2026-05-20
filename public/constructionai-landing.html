@@ -1,0 +1,1002 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ConstructionAI.chat - Construction Compliance Intelligence</title>
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="description"
+    content="Accurate, cited answers to IS codes, NBC 2016, BIS standards, and state bye-laws. Built for site engineers, project managers, and safety officers." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500&family=DM+Mono:wght@400;500&display=swap"
+    rel="stylesheet" />
+  <style>
+    *,
+    *::before,
+    *::after {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --green: #1D9E75;
+      --green-dark: #0F6E56;
+      --green-light: #E1F5EE;
+      --green-mid: #5DCAA5;
+      --text-primary: #111;
+      --text-secondary: #555;
+      --text-tertiary: #999;
+      --border: rgba(0, 0, 0, 0.09);
+      --border-mid: rgba(0, 0, 0, 0.14);
+      --surface: #fff;
+      --surface-2: #f7f7f5;
+      --surface-3: #f0f0ec;
+      --radius-md: 8px;
+      --radius-lg: 12px;
+    }
+
+    html {
+      scroll-behavior: smooth;
+    }
+
+    body {
+      font-family: 'DM Sans', system-ui, sans-serif;
+      background: #fafaf8;
+      color: var(--text-primary);
+      font-size: 16px;
+      line-height: 1.6;
+      -webkit-font-smoothing: antialiased;
+    }
+
+    a {
+      color: inherit;
+      text-decoration: none;
+    }
+
+    /* NAV */
+    nav {
+      position: sticky;
+      top: 0;
+      z-index: 100;
+      background: rgba(250, 250, 248, 0.92);
+      backdrop-filter: blur(12px);
+      -webkit-backdrop-filter: blur(12px);
+      border-bottom: 0.5px solid var(--border);
+      padding: 0 2rem;
+    }
+
+    .nav-inner {
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      height: 60px;
+    }
+
+    .nav-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .logo-mark {
+      width: 30px;
+      height: 30px;
+      background: var(--green);
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .logo-mark svg {
+      width: 16px;
+      height: 16px;
+      color: #fff;
+    }
+
+    .logo-text {
+      font-size: 15px;
+      font-weight: 500;
+    }
+
+    .logo-text strong {
+      color: var(--green);
+      font-weight: 500;
+    }
+
+    .logo-text .domain {
+      color: var(--text-tertiary);
+      font-size: 13px;
+    }
+
+    .nav-cta {
+      font-size: 13px;
+      font-weight: 500;
+      padding: 7px 16px;
+      border-radius: var(--radius-md);
+      border: 0.5px solid var(--border-mid);
+      background: var(--surface);
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .nav-cta:hover {
+      background: var(--surface-2);
+    }
+
+    /* LAYOUT */
+    .container {
+      max-width: 960px;
+      margin: 0 auto;
+      padding: 0 2rem;
+    }
+
+    /* HERO */
+    .hero {
+      text-align: center;
+      padding: 5rem 2rem 4rem;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 12px;
+      font-weight: 500;
+      color: var(--green-dark);
+      background: var(--green-light);
+      padding: 4px 12px;
+      border-radius: 20px;
+      margin-bottom: 1.5rem;
+    }
+
+    .hero-badge svg {
+      width: 13px;
+      height: 13px;
+    }
+
+    .hero h1 {
+      font-size: clamp(32px, 5vw, 50px);
+      font-weight: 500;
+      line-height: 1.15;
+      letter-spacing: -0.02em;
+      color: var(--text-primary);
+      max-width: 680px;
+      margin: 0 auto 1.25rem;
+    }
+
+    .hero h1 em {
+      font-style: normal;
+      color: var(--green);
+    }
+
+    .hero p {
+      font-size: 17px;
+      color: var(--text-secondary);
+      max-width: 520px;
+      margin: 0 auto 2.25rem;
+      line-height: 1.7;
+    }
+
+    .hero-actions {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+
+    .btn-primary {
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 10px 22px;
+      border-radius: var(--radius-md);
+      border: none;
+      background: var(--green);
+      color: #fff;
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-primary:hover {
+      background: var(--green-dark);
+    }
+
+    .btn-ghost {
+      font-family: inherit;
+      font-size: 14px;
+      font-weight: 500;
+      padding: 10px 22px;
+      border-radius: var(--radius-md);
+      border: 0.5px solid var(--border-mid);
+      background: transparent;
+      color: var(--text-primary);
+      cursor: pointer;
+      transition: background 0.15s;
+    }
+
+    .btn-ghost:hover {
+      background: var(--surface-2);
+    }
+
+    /* DEMO BLOCK */
+    .demo-wrap {
+      padding: 0 2rem 3rem;
+      max-width: 960px;
+      margin: 0 auto;
+    }
+
+    .demo-block {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 16px rgba(0, 0, 0, 0.03);
+    }
+
+    .demo-tabs {
+      display: flex;
+      gap: 8px;
+      margin-bottom: 1.25rem;
+      flex-wrap: wrap;
+    }
+
+    .demo-tab {
+      font-family: inherit;
+      font-size: 12px;
+      font-weight: 500;
+      padding: 5px 14px;
+      border-radius: 20px;
+      border: 0.5px solid var(--border);
+      background: transparent;
+      color: var(--text-secondary);
+      cursor: pointer;
+      transition: all 0.15s;
+    }
+
+    .demo-tab.active {
+      background: var(--green);
+      color: #fff;
+      border-color: var(--green);
+    }
+
+    .demo-tab:not(.active):hover {
+      background: var(--surface-2);
+    }
+
+    .demo-query {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      background: var(--surface-2);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-md);
+      margin-bottom: 1.25rem;
+      font-size: 14px;
+      color: var(--text-secondary);
+    }
+
+    .demo-query svg {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      color: var(--text-tertiary);
+    }
+
+    .demo-answer {
+      font-size: 14px;
+      color: var(--text-primary);
+      line-height: 1.75;
+      margin-bottom: 1rem;
+    }
+
+    .citations {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 7px;
+    }
+
+    .cite {
+      display: inline-flex;
+      align-items: center;
+      gap: 5px;
+      font-size: 11px;
+      font-weight: 500;
+      background: var(--green-light);
+      color: var(--green-dark);
+      padding: 3px 10px;
+      border-radius: 20px;
+      font-family: 'DM Mono', monospace;
+    }
+
+    .cite svg {
+      width: 11px;
+      height: 11px;
+    }
+
+    /* DIVIDER */
+    .divider {
+      border: none;
+      border-top: 0.5px solid var(--border);
+    }
+
+    /* SECTIONS */
+    section {
+      padding: 4rem 0;
+    }
+
+    .section-label {
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--text-tertiary);
+      margin-bottom: 0.75rem;
+    }
+
+    .section-title {
+      font-size: 28px;
+      font-weight: 500;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+      color: var(--text-primary);
+      margin-bottom: 0.6rem;
+    }
+
+    .section-sub {
+      font-size: 15px;
+      color: var(--text-secondary);
+      max-width: 460px;
+      line-height: 1.65;
+    }
+
+    .section-head {
+      margin-bottom: 2.5rem;
+    }
+
+    .section-head.centered {
+      text-align: center;
+    }
+
+    .section-head.centered .section-sub {
+      margin: 0 auto;
+    }
+
+    /* FEATURE CARDS */
+    .cards-3 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+      gap: 16px;
+    }
+
+    .feat-card {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+    }
+
+    .feat-icon {
+      width: 38px;
+      height: 38px;
+      border-radius: var(--radius-md);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 1rem;
+    }
+
+    .feat-icon svg {
+      width: 18px;
+      height: 18px;
+    }
+
+    .feat-icon.green {
+      background: var(--green-light);
+      color: var(--green-dark);
+    }
+
+    .feat-icon.blue {
+      background: #E6F1FB;
+      color: #185FA5;
+    }
+
+    .feat-icon.amber {
+      background: #FAEEDA;
+      color: #854F0B;
+    }
+
+    .feat-card h3 {
+      font-size: 15px;
+      font-weight: 500;
+      margin-bottom: 6px;
+    }
+
+    .feat-card p {
+      font-size: 13px;
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* PERSONAS */
+    .personas {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+      gap: 16px;
+    }
+
+    .persona {
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 1.5rem;
+    }
+
+    .persona-num {
+      font-size: 11px;
+      font-weight: 500;
+      text-transform: uppercase;
+      letter-spacing: 0.07em;
+      color: var(--text-tertiary);
+      margin-bottom: 0.75rem;
+    }
+
+    .persona h3 {
+      font-size: 16px;
+      font-weight: 500;
+      margin-bottom: 1rem;
+    }
+
+    .persona ul {
+      list-style: none;
+    }
+
+    .persona ul li {
+      font-size: 13px;
+      color: var(--text-secondary);
+      padding: 6px 0;
+      border-bottom: 0.5px solid var(--border);
+      line-height: 1.5;
+      display: flex;
+      align-items: flex-start;
+      gap: 6px;
+    }
+
+    .persona ul li:last-child {
+      border-bottom: none;
+    }
+
+    .persona ul li::before {
+      content: "-";
+      color: var(--green);
+      font-weight: 500;
+      flex-shrink: 0;
+    }
+
+    /* SOURCES */
+    .sources-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 12px;
+    }
+
+    .source {
+      background: var(--surface-2);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-md);
+      padding: 1rem;
+      text-align: center;
+    }
+
+    .source-name {
+      font-size: 14px;
+      font-weight: 500;
+      color: var(--text-primary);
+    }
+
+    .source-desc {
+      font-size: 11px;
+      color: var(--text-tertiary);
+      margin-top: 3px;
+    }
+
+    /* SAMPLE QUERIES */
+    .query-list {
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .query-item {
+      font-family: inherit;
+      font-size: 14px;
+      color: var(--text-secondary);
+      padding: 10px 14px;
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      text-align: left;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: background 0.15s, border-color 0.15s;
+    }
+
+    .query-item:hover {
+      background: var(--surface-2);
+      border-color: var(--border-mid);
+    }
+
+    .query-item svg {
+      flex-shrink: 0;
+      width: 14px;
+      height: 14px;
+      color: var(--text-tertiary);
+    }
+
+    /* TRUST BAR */
+    .trust-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 2.5rem;
+      flex-wrap: wrap;
+      padding: 2rem 0;
+      border-top: 0.5px solid var(--border);
+      border-bottom: 0.5px solid var(--border);
+    }
+
+    .trust-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      color: var(--text-secondary);
+    }
+
+    .trust-item svg {
+      width: 16px;
+      height: 16px;
+      color: var(--green);
+    }
+
+    /* CTA */
+    .cta-block {
+      text-align: center;
+      background: var(--surface);
+      border: 0.5px solid var(--border);
+      border-radius: var(--radius-lg);
+      padding: 3.5rem 2rem;
+      margin: 3rem 0;
+    }
+
+    .cta-block h2 {
+      font-size: 26px;
+      font-weight: 500;
+      letter-spacing: -0.01em;
+      margin-bottom: 0.75rem;
+    }
+
+    .cta-block p {
+      font-size: 15px;
+      color: var(--text-secondary);
+      max-width: 440px;
+      margin: 0 auto 2rem;
+      line-height: 1.65;
+    }
+
+    /* FOOTER */
+    footer {
+      border-top: 0.5px solid var(--border);
+      padding: 1.75rem 2rem;
+      text-align: center;
+      font-size: 12px;
+      color: var(--text-tertiary);
+    }
+
+    footer a {
+      color: var(--green);
+    }
+
+    /* ANIMATIONS */
+    @keyframes fadeUp {
+      from {
+        opacity: 0;
+        transform: translateY(16px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .hero>* {
+      animation: fadeUp 0.5s ease both;
+    }
+
+    .hero>*:nth-child(1) {
+      animation-delay: 0.05s;
+    }
+
+    .hero>*:nth-child(2) {
+      animation-delay: 0.12s;
+    }
+
+    .hero>*:nth-child(3) {
+      animation-delay: 0.19s;
+    }
+
+    .hero>*:nth-child(4) {
+      animation-delay: 0.26s;
+    }
+
+    @media (max-width: 600px) {
+      .hero {
+        padding: 3rem 1.25rem 2.5rem;
+      }
+
+      .demo-wrap {
+        padding: 0 1.25rem 2.5rem;
+      }
+
+      .container {
+        padding: 0 1.25rem;
+      }
+
+      .trust-bar {
+        gap: 1.25rem;
+      }
+
+      nav {
+        padding: 0 1.25rem;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+  <!-- NAV -->
+  <nav>
+    <div class="nav-inner">
+      <div class="nav-logo">
+        <div class="logo-mark">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <path d="M3 21h18M3 7v14M21 7v14M6 21V11M10 21V11M14 21V11M18 21V11M3 7l9-4 9 4" />
+          </svg>
+        </div>
+        <span class="logo-text">Construction<strong>AI</strong><span class="domain">.chat</span></span>
+      </div>
+      <a href="https://app.constructionai.chat/" class="nav-cta">Sign in</a>
+    </div>
+  </nav>
+
+  <!-- HERO -->
+  <section class="hero">
+    <div class="hero-badge">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"
+        stroke-linejoin="round">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+      </svg>
+      Zero hallucination, always cited
+    </div>
+    <h1>Construction compliance, answered in <em>seconds</em></h1>
+    <p>Accurate, cited answers to IS codes, NBC 2016, BIS standards, and state bye-laws - built for site engineers,
+      project managers, and safety officers.</p>
+    <div class="hero-actions">
+      <a href="https://app.constructionai.chat/" class="btn-primary">Sign in</a>
+      <a href="#how-it-works" class="btn-ghost">See how it works</a>
+    </div>
+  </section>
+
+  <!-- DEMO -->
+  <div class="demo-wrap" id="how-it-works">
+    <div class="demo-block">
+      <div class="demo-tabs">
+        <button class="demo-tab active" onclick="switchTab(0)">Site Engineer</button>
+        <button class="demo-tab" onclick="switchTab(1)">Safety Officer</button>
+        <button class="demo-tab" onclick="switchTab(2)">Project Manager</button>
+      </div>
+      <div id="demo-content"></div>
+    </div>
+  </div>
+
+  <!-- FEATURES -->
+  <section>
+    <div class="container">
+      <div class="section-head centered">
+        <p class="section-label">Why ConstructionAI</p>
+        <h2 class="section-title">Built for the site, not a boardroom</h2>
+        <p class="section-sub">Every answer comes with a source. Every source is verified. No guessing, no
+          hallucination.</p>
+      </div>
+      <div class="cards-3">
+        <div class="feat-card">
+          <div class="feat-icon green">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+              <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+            </svg>
+          </div>
+          <h3>Grounded in verified sources</h3>
+          <p>IS codes, NBC 2016, BIS standards, CPWD specs, and state building bye-laws - indexed and kept current.</p>
+        </div>
+        <div class="feat-card">
+          <div class="feat-icon blue">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round">
+              <path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" />
+              <path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" />
+            </svg>
+          </div>
+          <h3>Every answer is cited</h3>
+          <p>Clause-level citations with every response. Share answers with your team knowing exactly where they came
+            from.</p>
+        </div>
+        <div class="feat-card">
+          <div class="feat-icon amber">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+              stroke-linejoin="round">
+              <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+              <path d="M12 18h.01" />
+            </svg>
+          </div>
+          <h3>Works on site, on mobile</h3>
+          <p>Fast, mobile-first experience built for field conditions - not a desktop research tool.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- PERSONAS -->
+  <section>
+    <div class="container">
+      <div class="section-head centered">
+        <p class="section-label">Who it's for</p>
+        <h2 class="section-title">Designed for three personas</h2>
+        <p class="section-sub">Different roles ask different questions. ConstructionAI understands context.</p>
+      </div>
+      <div class="personas">
+        <div class="persona">
+          <div class="persona-num">Persona 01</div>
+          <h3>Site Engineer</h3>
+          <ul>
+            <li><span>Concrete mix ratios per IS 456</span></li>
+            <li><span>Rebar cover requirements</span></li>
+            <li><span>Shuttering removal timelines</span></li>
+            <li><span>Soil bearing capacity queries</span></li>
+          </ul>
+        </div>
+        <div class="persona">
+          <div class="persona-num">Persona 02</div>
+          <h3>Safety Officer</h3>
+          <ul>
+            <li><span>Height work permit requirements</span></li>
+            <li><span>PPE standards per activity</span></li>
+            <li><span>Incident reporting obligations</span></li>
+            <li><span>NBC fire safety compliance</span></li>
+          </ul>
+        </div>
+        <div class="persona">
+          <div class="persona-num">Persona 03</div>
+          <h3>Project Manager</h3>
+          <ul>
+            <li><span>Approval workflows and timelines</span></li>
+            <li><span>State bye-law compliance checks</span></li>
+            <li><span>Document requirements for NOC</span></li>
+            <li><span>Environmental clearance rules</span></li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- SOURCES -->
+  <section>
+    <div class="container">
+      <div class="section-head centered">
+        <p class="section-label">Knowledge base</p>
+        <h2 class="section-title">Built on authoritative sources</h2>
+        <p class="section-sub">No scraped blogs. No unverified forums. Only primary regulatory and standards documents.
+        </p>
+      </div>
+      <div class="sources-grid">
+        <div class="source">
+          <div class="source-name">IS Codes</div>
+          <div class="source-desc">Bureau of Indian Standards</div>
+        </div>
+        <div class="source">
+          <div class="source-name">NBC 2016</div>
+          <div class="source-desc">National Building Code</div>
+        </div>
+        <div class="source">
+          <div class="source-name">BIS</div>
+          <div class="source-desc">BIS Standards & Specs</div>
+        </div>
+        <div class="source">
+          <div class="source-name">CPWD</div>
+          <div class="source-desc">CPWD Specifications</div>
+        </div>
+        <div class="source">
+          <div class="source-name">State Bye-laws</div>
+          <div class="source-desc">Municipal & State Codes</div>
+        </div>
+        <div class="source">
+          <div class="source-name">MoEF</div>
+          <div class="source-desc">Environmental Clearances</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <hr class="divider" />
+
+  <!-- SAMPLE QUERIES -->
+  <section>
+    <div class="container">
+      <div class="section-head centered">
+        <p class="section-label">Sample questions</p>
+        <h2 class="section-title">Questions people actually ask on site</h2>
+        <p class="section-sub">Real queries from real construction professionals - exactly the kind ConstructionAI is
+          built to answer.</p>
+      </div>
+      <div class="query-list">
+        <div class="query-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+          What is the minimum clear cover for columns in moderate exposure conditions?
+        </div>
+        <div class="query-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+          What does NBC 2016 say about fire exits for commercial buildings above 15 metres?
+        </div>
+        <div class="query-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+          Working at height above 3 metres - what safety provisions are required?
+        </div>
+        <div class="query-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+          What tests are mandatory before placing concrete in a foundation?
+        </div>
+        <div class="query-item">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+            stroke-linejoin="round">
+            <path d="M5 12h14M12 5l7 7-7 7" />
+          </svg>
+          What documents are needed for a building plan approval in Maharashtra?
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRUST BAR -->
+  <div class="container">
+    <div class="trust-bar">
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
+          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
+        </svg>
+        No hallucination
+      </div>
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
+          <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" />
+          <path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z" />
+        </svg>
+        Primary sources only
+      </div>
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
+          <rect x="5" y="2" width="14" height="20" rx="2" ry="2" />
+          <path d="M12 18h.01" />
+        </svg>
+        Mobile-first
+      </div>
+      <div class="trust-item">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+          stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10" />
+          <path d="M12 6v6l4 2" />
+        </svg>
+        Real-time answers
+      </div>
+    </div>
+  </div>
+
+  <!-- CTA -->
+  <div class="container">
+    <div class="cta-block">
+      <h2>Get early access</h2>
+      <p>We are working with site teams, project managers, and safety officers before public launch. If you work in
+        Indian construction, we want to hear from you.</p>
+      <a href="https://app.constructionai.chat/" class="btn-primary">Start a Trial</a>
+    </div>
+  </div>
+
+  <!-- FOOTER -->
+  <footer>
+    <p>constructionai.chat &nbsp;·&nbsp; Built for Indian construction professionals &nbsp;·&nbsp; <a
+        href="mailto:info@zenithive.com">info@zenithive.com</a></p>
+  </footer>
+
+  <script>
+    const demos = [
+      {
+        query: "What is the minimum M-grade concrete for a RCC framed structure in seismic zone 3?",
+        answer: "For RCC framed structures in seismic zones III and above, a minimum of M20 grade concrete is required. This applies to all structural members including columns, beams, and slabs where the structure falls under moderate exposure conditions.",
+        citations: ["IS 456:2000 Cl. 8.2", "IS 13920", "NBC 2016 Part 6"]
+      },
+      {
+        query: "At what height does a full body harness become mandatory for workers on site?",
+        answer: "A full body harness with a lifeline is mandatory for all work carried out at heights exceeding 3 metres from the ground or working platform. Safety nets or catch platforms must also be provided where harness anchorage is not feasible.",
+        citations: ["BOCW Act 1996", "NBC 2016 Part 7", "IS 3521"]
+      },
+      {
+        query: "What approvals are needed before starting excavation deeper than 1.5 metres on a commercial project?",
+        answer: "For excavations deeper than 1.5 metres, a shoring or strutting design signed by a licensed structural engineer is required. You must also notify the local municipal authority, obtain an excavation permit, and ensure utility clearances from electricity, water, and gas departments before work begins.",
+        citations: ["NBC 2016 Part 6 Sec 4", "Local Municipal Bye-laws", "BOCW Rules"]
+      }
+    ];
+
+    let activeTab = 0;
+
+    function switchTab(idx) {
+      activeTab = idx;
+      document.querySelectorAll('.demo-tab').forEach((t, i) => t.classList.toggle('active', i === idx));
+      renderDemo();
+    }
+
+    function renderDemo() {
+      const d = demos[activeTab];
+      document.getElementById('demo-content').innerHTML =
+        '<div class="demo-query">' +
+        '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>' +
+        d.query +
+        '</div>' +
+        '<p class="demo-answer">' + d.answer + '</p>' +
+        '<div class="citations">' +
+        d.citations.map(function (c) {
+          return '<span class="cite">' +
+            '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>' +
+            c + '</span>';
+        }).join('') +
+        '</div>';
+    }
+
+    renderDemo();
+  </script>
+</body>
+
+</html>

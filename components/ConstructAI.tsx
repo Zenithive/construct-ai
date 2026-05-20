@@ -21,8 +21,8 @@ const ConstructAI = () => {
   }, []);
 
   if (!role) return (
-    <div className="h-screen bg-white flex items-center justify-center">
-      <div className="animate-spin rounded-full h-6 w-6 border-2 border-blue-600 border-t-transparent" />
+    <div className="h-screen bg-[#fafaf8] flex items-center justify-center">
+      <div className="animate-spin rounded-full h-6 w-6 border-2 border-[#1D9E75] border-t-transparent" />
     </div>
   );
 
@@ -62,14 +62,14 @@ const ConstructAI = () => {
   };
 
   return (
-    <div className="bg-white h-screen flex flex-col overflow-hidden">
+    <div className="bg-[#fafaf8] h-screen flex flex-col overflow-hidden">
       {tabs.length > 0 && (
-        <div className="bg-white border-b border-gray-200 flex-shrink-0 z-40">
+        <div className="bg-white border-b border-black/[0.09] flex-shrink-0 z-40">
           <div className="mx-auto px-4 sm:px-6">
             <div className="flex items-center justify-between h-12">
               <div className="flex items-center space-x-2">
-                <div className="bg-blue-600 p-1.5 rounded-lg"><HardHat className="h-4 w-4 text-white" /></div>
-                <span className="font-semibold text-gray-900 text-sm">ConstructAI</span>
+                <div className="bg-[#1D9E75] p-1.5 rounded-lg"><HardHat className="h-4 w-4 text-white" /></div>
+                <span className="font-medium text-[#111] text-sm">ConstructAI</span>
               </div>
               <nav className="hidden sm:flex items-center space-x-1">
                 {tabs.map(tab => {

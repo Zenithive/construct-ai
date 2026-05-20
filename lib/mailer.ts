@@ -24,13 +24,13 @@ export default mailer;
 
 export async function sendOTPEmail(to: string, otp: string): Promise<void> {
   await mailer.sendMail({
-    from: process.env.EMAIL_FROM || `ConstructAI <${process.env.EMAIL_USER}>`,
+    from: process.env.EMAIL_FROM || `ConstructionAI <${process.env.EMAIL_USER}>`,
     to,
-    subject: 'Your ConstructAI verification code',
+    subject: 'Your ConstructionAI verification code',
     html: `
       <div style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px;">
         <h2 style="color:#1d4ed8;">Verify your email</h2>
-        <p>Use the code below to verify your ConstructAI account. It expires in <strong>10 minutes</strong>.</p>
+        <p>Use the code below to verify your ConstructionAI account. It expires in <strong>10 minutes</strong>.</p>
         <div style="background:#f1f5f9;border-radius:8px;padding:24px;text-align:center;margin:24px 0;">
           <span style="font-size:36px;font-weight:bold;letter-spacing:8px;color:#1e293b;">${otp}</span>
         </div>

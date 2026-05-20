@@ -42,6 +42,8 @@ export interface ChatMessageRow {
   region: string | null;
   category: string | null;
   sources: Source[] | null;
+  feedback_type: string | null;
+  feedback_reason: string | null;
   created_at: string;
 }
 
@@ -73,4 +75,7 @@ export interface Message {
   confidence?: number;
   timestamp: Date;
   sources?: Source[];
+  id?: string;
+  feedback_type?: 'Like' | 'Dislike' | null;
+  feedback_reason?: string | null;
 }
