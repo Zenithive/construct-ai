@@ -38,17 +38,19 @@ CREATE INDEX IF NOT EXISTS idx_chat_sessions_user_id ON chat_sessions (user_id);
 
 -- Chat messages
 CREATE TABLE IF NOT EXISTS chat_messages (
-  id           UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  session_id   UUID NOT NULL REFERENCES chat_sessions (id) ON DELETE CASCADE,
-  user_id      UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-  message_type TEXT NOT NULL CHECK (message_type IN ('user', 'ai')),
-  content      TEXT NOT NULL,
-  citations    JSONB,
-  confidence   FLOAT,
-  region       TEXT,
-  category     TEXT,
-  sources      JSONB,
-  created_at   TIMESTAMPTZ NOT NULL DEFAULT NOW()
+  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
+  session_id      UUID NOT NULL REFERENCES chat_sessions (id) ON DELETE CASCADE,
+  user_id         UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
+  message_type    TEXT NOT NULL CHECK (message_type IN ('user', 'ai')),
+  content         TEXT NOT NULL,
+  citations       JSONB,
+  confidence      FLOAT,
+  region          TEXT,
+  category        TEXT,
+  sources         JSONB,
+  feedback_type   TEXT CHECK (feedback_type IN ('like', 'dislike')),
+  feedback_reason TEXT,
+  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_chat_messages_session_id ON chat_messages (session_id);
 
@@ -65,20 +67,6 @@ CREATE TABLE IF NOT EXISTS alerts (
   created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 CREATE INDEX IF NOT EXISTS idx_alerts_user_id ON alerts (user_id);
-
--- Message feedback (like / dislike)
-CREATE TABLE IF NOT EXISTS message_feedback (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  message_id      UUID NOT NULL REFERENCES chat_messages (id) ON DELETE CASCADE,
-  user_id         UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-  session_id      UUID NOT NULL REFERENCES chat_sessions (id) ON DELETE CASCADE,
-  feedback_type   TEXT NOT NULL CHECK (feedback_type IN ('like', 'dislike')),
-  feedback_reason TEXT,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (message_id, user_id)
-);
-CREATE INDEX IF NOT EXISTS idx_message_feedback_message_id ON message_feedback (message_id);
-CREATE INDEX IF NOT EXISTS idx_message_feedback_user_id    ON message_feedback (user_id);
 
 -- Uploaded files
 CREATE TABLE IF NOT EXISTS uploaded_files (

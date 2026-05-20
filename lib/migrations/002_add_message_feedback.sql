@@ -1,15 +1,16 @@
--- Migration 002: Add message_feedback table for like/dislike tracking
+-- Migration 002: Move feedback columns into chat_messages, drop message_feedback table
 
-CREATE TABLE IF NOT EXISTS message_feedback (
-  id              UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
-  message_id      UUID NOT NULL REFERENCES chat_messages (id) ON DELETE CASCADE,
-  user_id         UUID NOT NULL REFERENCES users (id) ON DELETE CASCADE,
-  session_id      UUID NOT NULL REFERENCES chat_sessions (id) ON DELETE CASCADE,
-  feedback_type   TEXT NOT NULL CHECK (feedback_type IN ('like', 'dislike')),
-  feedback_reason TEXT,
-  created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-  UNIQUE (message_id, user_id)
-);
+-- Add feedback columns directly to chat_messages
+ALTER TABLE chat_messages
+  ADD COLUMN IF NOT EXISTS feedback_type   TEXT CHECK (feedback_type IN ('Like', 'Dislike')),
+  ADD COLUMN IF NOT EXISTS feedback_reason TEXT;
 
-CREATE INDEX IF NOT EXISTS idx_message_feedback_message_id ON message_feedback (message_id);
-CREATE INDEX IF NOT EXISTS idx_message_feedback_user_id    ON message_feedback (user_id);
+-- Migrate any existing feedback data
+UPDATE chat_messages cm
+SET feedback_type   = mf.feedback_type,
+    feedback_reason = mf.feedback_reason
+FROM message_feedback mf
+WHERE cm.id = mf.message_id;
+
+-- Drop the old separate table
+DROP TABLE IF EXISTS message_feedback;
