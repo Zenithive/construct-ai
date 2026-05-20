@@ -76,7 +76,6 @@ export interface Message {
   timestamp: Date;
   sources?: Source[];
   id?: string;
-  /** Persisted like/dislike (lowercase in API responses) */
-  feedback_type?: 'like' | 'dislike' | null;
+  feedback_type?: 'Like' | 'Dislike' | null;
   feedback_reason?: string | null;
 }

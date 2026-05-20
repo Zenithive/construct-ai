@@ -142,18 +142,17 @@ export function MessageActions({
   content: string;
   messageId?: string;
   sessionId?: string;
-  /** From chat history — restores thumbs state */
-  initialFeedbackType?: 'like' | 'dislike' | null;
+  initialFeedbackType?: 'Like' | 'Dislike' | null;
 }) {
   const [copied, setCopied] = useState(false);
-  const [liked, setLiked] = useState(initialFeedbackType === 'like');
-  const [disliked, setDisliked] = useState(initialFeedbackType === 'dislike');
+  const [liked, setLiked] = useState(initialFeedbackType === 'Like');
+  const [disliked, setDisliked] = useState(initialFeedbackType === 'Dislike');
   const [likeState, setLikeState] = useState<FeedbackState>('idle');
   const [showModal, setShowModal] = useState(false);
 
   useEffect(() => {
-    setLiked(initialFeedbackType === 'like');
-    setDisliked(initialFeedbackType === 'dislike');
+    setLiked(initialFeedbackType === 'Like');
+    setDisliked(initialFeedbackType === 'Dislike');
   }, [initialFeedbackType, messageId]);
 
   const handleCopy = useCallback(async () => {

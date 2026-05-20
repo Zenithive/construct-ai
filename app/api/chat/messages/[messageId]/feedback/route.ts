@@ -23,7 +23,7 @@ async function handleFeedback(
 
   const normalized = normalizeFeedbackType(feedback_type);
   if (!normalized)
-    return err('feedback_type must be "like" or "dislike".');
+    return err('feedback_type must be "Like" or "Dislike".');
 
   const message = await queryOne<ChatMessageRow>(
     `UPDATE chat_messages
