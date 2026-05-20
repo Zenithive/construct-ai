@@ -15,7 +15,7 @@ export type Message = {
   confidence?: number;
   timestamp: Date;
   sources?: Source[];
-  feedback_type?: 'like' | 'dislike' | null;
+  feedback_type?: 'Like' | 'Dislike' | null;
   feedback_reason?: string | null;
 };
 export type SessionStreamState = { messages: Message[]; isLoading: boolean; streamingSources: { db_sources: any[]; web_sources: any[] } };
