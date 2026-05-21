@@ -3,12 +3,14 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import { Send, Search, ArrowDown, Upload as Paperclip } from 'lucide-react';
 import { chatApi } from '@/services/apiClient';
-import UploadComponent from './Upload';
 import { renderContent } from '@/utils/parseMessage';
 import { normalizeFeedbackType } from '@/lib/feedback';
+import { CHAT_ATTACHMENT_ACCEPT } from '@/lib/attachments';
+import { useChatAttachments } from '@/hooks/useChatAttachments';
 import type { Message, Source } from './ChatWithSidebar';
 import { MessageActions, CopyIconButton } from './chat/MessageActions';
 import { ReferencesSection } from './chat/ReferencesSection';
+import { AttachmentPreview } from './chat/AttachmentPreview';
 
 type ChatComponentProps = {
   selectedCountry: string;
@@ -29,12 +31,24 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [category, setCategory] = useState(selectedCategory);
   const [isAutoScroll, setIsAutoScroll] = useState(true);
-  const [showUploadModal, setShowUploadModal] = useState(false);
+  const {
+    attachments,
+    error: attachmentError,
+    isUploading,
+    hasReadyAttachments,
+    addFiles,
+    removeAttachment,
+    clearAttachments,
+  } = useChatAttachments();
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const isProcessingRef = useRef(false);
   const historyLoadedRef = useRef(false);
+
+  const canSend =
+    (inputMessage.trim().length > 0 || hasReadyAttachments) && !isLoading && !isUploading;
 
   const sampleQuestions = [
     'What are the fire safety requirements for high-rise buildings?',
@@ -111,15 +125,35 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
   useEffect(() => { setCategory(selectedCategory); }, [selectedCategory]);
 
   const handleSendMessage = async () => {
-    if (!inputMessage.trim() || isProcessingRef.current || isLoading) return;
+    if (!canSend || isProcessingRef.current) return;
     isProcessingRef.current = true;
     const query = inputMessage.trim();
-    setInputMessage(''); setIsAutoScroll(true);
-    const userMessage: Message = { type: 'user', content: query, timestamp: new Date() };
+    const attachmentNote =
+      attachments.length > 0
+        ? `\n\n[Attached: ${attachments.filter(a => a.status === 'success').map(a => a.name).join(', ')}]`
+        : '';
+    const fullQuery = query || 'Please analyze the attached document(s).';
+    const displayContent = query ? query + attachmentNote : fullQuery;
+    setInputMessage('');
+    clearAttachments();
+    setIsAutoScroll(true);
+    requestAnimationFrame(adjustTextareaHeight);
+    const userMessage: Message = { type: 'user', content: displayContent.trim(), timestamp: new Date() };
     onSetMessages(prev => [...prev, userMessage]);
-    try { await chatApi.saveMessage(sessionId, 'user', query, { region: selectedCountry, category }); onMessageSent(); } catch (e) { console.error('Failed to save user message:', e); }
-    onRunStream(query, category);
+    try {
+      await chatApi.saveMessage(sessionId, 'user', displayContent.trim(), { region: selectedCountry, category });
+      onMessageSent();
+    } catch (e) {
+      console.error('Failed to save user message:', e);
+    }
+    onRunStream(fullQuery, category);
     isProcessingRef.current = false;
+  };
+
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    void addFiles(files);
+    e.target.value = '';
   };
 
   const showHistory = isLoadingHistory && messages.length === 0;
@@ -273,54 +307,66 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
 
       <div className="sticky bottom-0 z-10 flex-shrink-0 border-t border-black/[0.09] bg-[#fafaf8]/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-sm sm:px-4 sm:pb-4 sm:pt-3">
         <div className="mx-auto w-full max-w-3xl">
-          <div className="flex items-end gap-2 rounded-xl border border-black/[0.09] bg-white p-1.5 pl-3 shadow-sm transition-[border-color,box-shadow] focus-within:border-black/[0.14] focus-within:shadow-md sm:pl-3.5">
-            <textarea
-              ref={textareaRef}
-              rows={1}
-              value={inputMessage}
-              onChange={e => { setInputMessage(e.target.value); requestAnimationFrame(adjustTextareaHeight); }}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  void handleSendMessage();
-                }
-              }}
-              placeholder="Message ConstructionAI..."
-              className="max-h-[200px] min-h-[44px] flex-1 resize-none bg-transparent py-2.5 text-[15px] leading-snug text-[#111] placeholder:text-[#999] focus:outline-none"
-            />
-            <div className="flex shrink-0 items-center gap-1 pb-1 pr-0.5">
-              <button
-                type="button"
-                onClick={() => setShowUploadModal(true)}
-                className="rounded-lg p-2 text-[#999] transition-colors hover:bg-black/[0.05] hover:text-[#555]"
-                title="Upload documents"
-              >
-                <Paperclip className="h-5 w-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleSendMessage()}
-                disabled={!inputMessage.trim() || isLoading}
-                className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1D9E75] text-white shadow-sm transition-colors hover:bg-[#0F6E56] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Send className="h-4 w-4" />
-              </button>
+          {attachmentError && (
+            <p className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-xs text-red-700">
+              {attachmentError}
+            </p>
+          )}
+          <div className="rounded-xl border border-black/[0.09] bg-white shadow-sm transition-[border-color,box-shadow] focus-within:border-black/[0.14] focus-within:shadow-md">
+            <AttachmentPreview attachments={attachments} onRemove={removeAttachment} />
+            <div className="flex items-end gap-2 p-1.5 pl-3 sm:pl-3.5">
+              <input
+                ref={fileInputRef}
+                type="file"
+                multiple
+                accept={CHAT_ATTACHMENT_ACCEPT}
+                className="hidden"
+                onChange={handleFileInputChange}
+                aria-hidden
+              />
+              <textarea
+                ref={textareaRef}
+                rows={1}
+                value={inputMessage}
+                onChange={e => {
+                  setInputMessage(e.target.value);
+                  requestAnimationFrame(adjustTextareaHeight);
+                }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    void handleSendMessage();
+                  }
+                }}
+                placeholder="Message ConstructionAI..."
+                className="max-h-[200px] min-h-[44px] flex-1 resize-none bg-transparent py-2.5 text-[15px] leading-snug text-[#111] placeholder:text-[#999] focus:outline-none"
+              />
+              <div className="flex shrink-0 items-center gap-1 pb-1 pr-0.5">
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  disabled={isUploading}
+                  className="rounded-lg p-2 text-[#999] transition-colors hover:bg-black/[0.05] hover:text-[#555] disabled:cursor-not-allowed disabled:opacity-40"
+                  title="Attach documents"
+                >
+                  <Paperclip className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleSendMessage()}
+                  disabled={!canSend}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1D9E75] text-white shadow-sm transition-colors hover:bg-[#0F6E56] disabled:cursor-not-allowed disabled:opacity-40"
+                >
+                  <Send className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
-          <p className="mt-2 text-center text-xs text-[#999]">ConstructionAI can make mistakes. Verify important information.</p>
+          <p className="mt-2 text-center text-xs text-[#999]">
+            ConstructionAI can make mistakes. Verify important information.
+          </p>
         </div>
       </div>
-
-      {showUploadModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white shadow-xl border border-black/[0.09]">
-            <button type="button" onClick={() => setShowUploadModal(false)} className="absolute right-4 top-4 z-10 text-gray-500 transition-colors hover:text-gray-700">
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-            <UploadComponent />
-          </div>
-        </div>
-      )}
     </div>
   );
 };

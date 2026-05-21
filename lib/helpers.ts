@@ -39,6 +39,10 @@ export const ALLOWED_MIME_TYPES = [
   'application/pdf',
   'application/msword',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  'image/jpeg',
+  'image/png',
+  'image/webp',
+  'image/gif',
 ];
 
 export const MAX_FILE_SIZE_BYTES = 10 * 1024 * 1024; // 10 MB
