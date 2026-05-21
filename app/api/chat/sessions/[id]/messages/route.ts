@@ -1,17 +1,16 @@
 /**
  * GET  /api/chat/sessions/[id]/messages  — fetch all messages in a session
- * POST /api/chat/sessions/[id]/messages  — save a new message
+ * POST /api/chat/sessions/[id]/messages  — save a new message (legacy; prefer /send for user prompts)
  */
 import { NextRequest } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { requireAuth } from '@/lib/auth';
+import { checkCanSend } from '@/lib/billing/usage';
+import { insertChatMessage } from '@/lib/chat/messages';
+import { assertSessionOwner } from '@/lib/chat/session';
 import { query, queryOne } from '@/lib/db';
-import { ok, err } from '@/lib/helpers';
-import type { ChatMessageRow, ChatSessionRow } from '@/types';
-
-async function assertSessionOwner(sessionId: string, userId: string): Promise<ChatSessionRow | null> {
-  return queryOne<ChatSessionRow>('SELECT id FROM chat_sessions WHERE id = $1 AND user_id = $2', [sessionId, userId]);
-}
+import { ok, err, errCode } from '@/lib/helpers';
+import type { ChatMessageRow } from '@/types';
 
 export async function GET(req: NextRequest, { params }: { params: { id: string } }) {
   try {
@@ -57,27 +56,33 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!message_type || !content) return err('message_type and content are required.');
     if (!['user', 'ai'].includes(message_type)) return err('message_type must be "user" or "ai".');
 
-    const messageId = uuidv4();
-    await query(
-      `INSERT INTO chat_messages (id, session_id, user_id, message_type, content, citations, confidence, region, category, sources, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())`,
-      [messageId, params.id, authUser.userId, message_type, content, citations ? JSON.stringify(citations) : null, confidence ?? null, region ?? null, category ?? null, sources ? JSON.stringify(sources) : null]
-    );
-
-    // Bump session updated_at
-    await query('UPDATE chat_sessions SET updated_at = NOW() WHERE id = $1', [params.id]);
-
-    // Auto-title from first user message
     if (message_type === 'user') {
-      const count = await queryOne<{ count: string }>(
-        "SELECT COUNT(*) AS count FROM chat_messages WHERE session_id = $1 AND message_type = 'user'",
-        [params.id]
-      );
-      if (count && parseInt(count.count, 10) === 1) {
-        const title = content.slice(0, 60) + (content.length > 60 ? '…' : '');
-        await query('UPDATE chat_sessions SET title = $1 WHERE id = $2', [title, params.id]);
+      const usageCheck = await checkCanSend(authUser.userId);
+      if (!usageCheck.allowed) {
+        return errCode('LIMIT_EXCEEDED', 'Message limit reached for your plan.', 403, {
+          usage: {
+            used: usageCheck.used,
+            limit: usageCheck.limit,
+            remaining: usageCheck.remaining,
+            planCode: usageCheck.planCode,
+          },
+        });
       }
     }
+
+    const messageId = uuidv4();
+    await insertChatMessage({
+      messageId,
+      sessionId: params.id,
+      userId: authUser.userId,
+      messageType: message_type,
+      content,
+      citations,
+      confidence,
+      region,
+      category,
+      sources,
+    });
 
     return ok({ message: { id: messageId } }, 201);
   } catch (e) {

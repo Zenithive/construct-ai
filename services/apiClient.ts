@@ -47,6 +47,27 @@ export const isAuthenticated = (): boolean => !!getToken();
 
 // ── Base fetch ────────────────────────────────────────────────────────────────
 
+export class ApiError extends Error {
+  code?: string;
+  status: number;
+  extra?: Record<string, unknown>;
+
+  constructor(message: string, status: number, code?: string, extra?: Record<string, unknown>) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    this.code = code;
+    this.extra = extra;
+  }
+}
+
+export class LimitExceededError extends ApiError {
+  constructor(message: string, extra?: Record<string, unknown>) {
+    super(message, 403, 'LIMIT_EXCEEDED', extra);
+    this.name = 'LimitExceededError';
+  }
+}
+
 async function request<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
@@ -56,8 +77,14 @@ async function request<T = unknown>(path: string, options: RequestInit = {}): Pr
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
   const res = await fetch(path, { ...options, headers });
-  const data = await res.json();
-  if (!res.ok) throw new Error((data as { error?: string }).error || 'Something went wrong.');
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const payload = data as { error?: string; code?: string };
+    if (res.status === 403 && payload.code === 'LIMIT_EXCEEDED') {
+      throw new LimitExceededError(payload.error || 'Message limit reached.', data as Record<string, unknown>);
+    }
+    throw new ApiError(payload.error || 'Something went wrong.', res.status, payload.code, data as Record<string, unknown>);
+  }
   return data as T;
 }
 
@@ -101,6 +128,105 @@ export const chatApi = {
     request(`/api/chat/messages/${messageId}/feedback`, {
       method: 'POST',
       body: JSON.stringify({ session_id: sessionId, feedback_type, feedback_reason: feedback_reason ?? '' }),
+    }),
+
+  /**
+   * Gated send: usage check, persist messages, proxy AI SSE stream.
+   * Returns the raw Response for stream parsing.
+   */
+  sendMessage: async (
+    sessionId: string,
+    body: {
+      query: string;
+      content: string;
+      country_code: string;
+      region?: string;
+      category?: string;
+    },
+    signal?: AbortSignal
+  ): Promise<Response> => {
+    const token = getToken();
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+
+    const res = await fetch(`/api/chat/sessions/${sessionId}/send`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify(body),
+      signal,
+    });
+
+    if (res.status === 403) {
+      const data = await res.json().catch(() => ({}));
+      if ((data as { code?: string }).code === 'LIMIT_EXCEEDED') {
+        throw new LimitExceededError(
+          (data as { error?: string }).error || 'Message limit reached.',
+          data as Record<string, unknown>
+        );
+      }
+    }
+
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new ApiError(
+        (data as { error?: string }).error || 'Failed to send message.',
+        res.status,
+        (data as { code?: string }).code,
+        data as Record<string, unknown>
+      );
+    }
+
+    return res;
+  },
+};
+
+// ── Billing API ─────────────────────────────────────────────────────────────
+
+export type BillingPlanSummary = {
+  code: string;
+  name: string;
+  messageLimit: number | null;
+};
+
+export type BillingUsageResponse = {
+  used: number;
+  limit: number | null;
+  remaining: number | null;
+  plan: BillingPlanSummary;
+  periodStart: string;
+  periodEnd: string;
+  subscriptionStatus: string;
+};
+
+export type BillingPlanListing = {
+  code: string;
+  name: string;
+  priceMonthly: number | null;
+  messageLimit: number | null;
+  features: Record<string, unknown> | null;
+};
+
+export const billingApi = {
+  getUsage: () => request<BillingUsageResponse>('/api/billing/usage'),
+  getPlans: () =>
+    request<{ plans: BillingPlanListing[] }>('/api/billing/plans'),
+  createCheckoutSession: (planCode: string) =>
+    request<{ url: string; sessionId: string }>('/api/billing/create-checkout-session', {
+      method: 'POST',
+      body: JSON.stringify({ planCode }),
+    }),
+  confirmCheckout: (sessionId: string) =>
+    request<{
+      plan: { code: string; name: string; messageLimit: number | null };
+      subscriptionStatus: string;
+      used: number;
+      limit: number | null;
+      remaining: number | null;
+    }>('/api/billing/confirm-checkout', {
+      method: 'POST',
+      body: JSON.stringify({ sessionId }),
     }),
 };
 

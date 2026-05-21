@@ -7,6 +7,8 @@ import { renderContent } from '@/utils/parseMessage';
 import { normalizeFeedbackType } from '@/lib/feedback';
 import { CHAT_ATTACHMENT_ACCEPT } from '@/lib/attachments';
 import { useChatAttachments } from '@/hooks/useChatAttachments';
+import type { BillingUsageResponse } from '@/services/apiClient';
+import LimitExceededOverlay from './billing/LimitExceededOverlay';
 import type { Message, Source } from './ChatWithSidebar';
 import { MessageActions, CopyIconButton } from './chat/MessageActions';
 import { ReferencesSection } from './chat/ReferencesSection';
@@ -20,13 +22,33 @@ type ChatComponentProps = {
   sessionId: string; messages: Message[]; isLoading: boolean;
   streamingSources: { db_sources: any[]; web_sources: any[] };
   onSetMessages: (updater: Message[] | ((prev: Message[]) => Message[])) => void;
-  onRunStream: (query: string, category: string) => void;
-  onMessageSent: () => void; onToggleSidebar: () => void; isSidebarOpen: boolean;
+  onRunStream: (query: string, category: string, displayContent: string) => void;
+  isLimitBlocked?: boolean;
+  usage?: BillingUsageResponse | null;
+  onRequestUpgrade?: () => void;
+  onToggleSidebar: () => void;
+  isSidebarOpen: boolean;
 };
 
 const BUBBLE_MAX = 'max-w-[85%] sm:max-w-2xl';
 
-const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories, sessionId, messages, isLoading, streamingSources, onSetMessages, onRunStream, onMessageSent, onToggleSidebar, isSidebarOpen }: ChatComponentProps) => {
+const ChatComponent = ({
+  selectedCountry,
+  selectedCategory,
+  regions,
+  categories,
+  sessionId,
+  messages,
+  isLoading,
+  streamingSources,
+  onSetMessages,
+  onRunStream,
+  isLimitBlocked = false,
+  usage = null,
+  onRequestUpgrade,
+  onToggleSidebar,
+  isSidebarOpen,
+}: ChatComponentProps) => {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [category, setCategory] = useState(selectedCategory);
@@ -48,7 +70,10 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
   const historyLoadedRef = useRef(false);
 
   const canSend =
-    (inputMessage.trim().length > 0 || hasReadyAttachments) && !isLoading && !isUploading;
+    (inputMessage.trim().length > 0 || hasReadyAttachments) &&
+    !isLoading &&
+    !isUploading &&
+    !isLimitBlocked;
 
   const sampleQuestions = [
     'What are the fire safety requirements for high-rise buildings?',
@@ -140,13 +165,7 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
     requestAnimationFrame(adjustTextareaHeight);
     const userMessage: Message = { type: 'user', content: displayContent.trim(), timestamp: new Date() };
     onSetMessages(prev => [...prev, userMessage]);
-    try {
-      await chatApi.saveMessage(sessionId, 'user', displayContent.trim(), { region: selectedCountry, category });
-      onMessageSent();
-    } catch (e) {
-      console.error('Failed to save user message:', e);
-    }
-    onRunStream(fullQuery, category);
+    onRunStream(fullQuery, category, displayContent.trim());
     isProcessingRef.current = false;
   };
 
@@ -306,13 +325,18 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
       </div>
 
       <div className="sticky bottom-0 z-10 flex-shrink-0 border-t border-black/[0.09] bg-[#fafaf8]/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-sm sm:px-4 sm:pb-4 sm:pt-3">
-        <div className="mx-auto w-full max-w-3xl">
+        <div className="relative mx-auto w-full max-w-3xl">
           {attachmentError && (
             <p className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-xs text-red-700">
               {attachmentError}
             </p>
           )}
-          <div className="rounded-xl border border-black/[0.09] bg-white shadow-sm transition-[border-color,box-shadow] focus-within:border-black/[0.14] focus-within:shadow-md">
+          <div className="relative rounded-xl border border-black/[0.09] bg-white shadow-sm transition-[border-color,box-shadow] focus-within:border-black/[0.14] focus-within:shadow-md">
+            <LimitExceededOverlay
+              show={isLimitBlocked}
+              planName={usage?.plan.name}
+              onUpgrade={() => onRequestUpgrade?.()}
+            />
             <AttachmentPreview attachments={attachments} onRemove={removeAttachment} />
             <div className="flex items-end gap-2 p-1.5 pl-3 sm:pl-3.5">
               <input
@@ -326,6 +350,7 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
               />
               <textarea
                 ref={textareaRef}
+                disabled={isLimitBlocked}
                 rows={1}
                 value={inputMessage}
                 onChange={e => {
@@ -338,14 +363,18 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
                     void handleSendMessage();
                   }
                 }}
-                placeholder="Message ConstructionAI..."
-                className="max-h-[200px] min-h-[44px] flex-1 resize-none bg-transparent py-2.5 text-[15px] leading-snug text-[#111] placeholder:text-[#999] focus:outline-none"
+                placeholder={
+                  isLimitBlocked
+                    ? 'Upgrade to send more messages…'
+                    : 'Message ConstructionAI...'
+                }
+                className={`max-h-[200px] min-h-[44px] flex-1 resize-none bg-transparent py-2.5 text-[15px] leading-snug text-[#111] placeholder:text-[#999] focus:outline-none ${isLimitBlocked ? 'cursor-not-allowed opacity-50 blur-[0.5px]' : ''}`}
               />
               <div className="flex shrink-0 items-center gap-1 pb-1 pr-0.5">
                 <button
                   type="button"
                   onClick={() => fileInputRef.current?.click()}
-                  disabled={isUploading}
+                  disabled={isUploading || isLimitBlocked}
                   className="rounded-lg p-2 text-[#999] transition-colors hover:bg-black/[0.05] hover:text-[#555] disabled:cursor-not-allowed disabled:opacity-40"
                   title="Attach documents"
                 >

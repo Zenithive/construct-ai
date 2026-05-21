@@ -4,6 +4,7 @@
  * Verifies OTP and marks user email as verified.
  */
 import { NextRequest } from 'next/server';
+import { ensureBillingInitialized } from '@/lib/billing/usage';
 import { query, queryOne } from '@/lib/db';
 import { ok, err, isValidEmail } from '@/lib/helpers';
 
@@ -38,6 +39,12 @@ export async function POST(req: NextRequest) {
     // Delete OTP + verify user
     await query('DELETE FROM otp_verifications WHERE id = $1', [record.id]);
     await query('UPDATE users SET is_verified = true WHERE email = $1', [email.toLowerCase()]);
+
+    const user = await queryOne<{ id: string }>(
+      'SELECT id FROM users WHERE email = $1',
+      [email.toLowerCase()]
+    );
+    if (user) await ensureBillingInitialized(user.id);
 
     return ok({ message: 'Email verified successfully.' });
   } catch (e) {

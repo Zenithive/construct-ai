@@ -28,6 +28,8 @@ import {
 } from "@/services/apiClient";
 import ConfirmModal from "./common/ConfirmModal";
 import { RegionDropdown } from "./common/RegionDropdown";
+import UsageMeter from "./billing/UsageMeter";
+import SidebarPlanTag from "./billing/SidebarPlanTag";
 import { COUNTRIES, type CountryKey } from "@/constants/countries";
 
 type ChatSession = {
@@ -46,6 +48,8 @@ type ChatSidebarProps = {
   isOpen: boolean;
   onToggle: () => void;
   onCountryChange?: (code: string, label: string) => void;
+  usageRefreshKey?: number;
+  onRefreshUsage?: () => void;
 };
 
 /* ─── Main sidebar ───────────────────────────────────────────────────────── */
@@ -59,6 +63,8 @@ const ChatSidebar = forwardRef(
       isOpen,
       onToggle,
       onCountryChange,
+      usageRefreshKey = 0,
+      onRefreshUsage,
     }: ChatSidebarProps,
     ref,
   ) => {
@@ -79,7 +85,10 @@ const ChatSidebar = forwardRef(
     const historyBtnRef = useRef<HTMLButtonElement>(null);
     const router = useRouter();
 
-    useImperativeHandle(ref, () => ({ refreshSessions: loadChatSessions }));
+    useImperativeHandle(ref, () => ({
+      refreshSessions: loadChatSessions,
+      refreshUsage: () => onRefreshUsage?.(),
+    }));
 
     useEffect(() => {
       loadChatSessions();
@@ -263,6 +272,8 @@ const ChatSidebar = forwardRef(
             )}
           </div>
 
+          <UsageMeter isOpen={isOpen} refreshKey={usageRefreshKey} />
+
           {/* Sessions list */}
           <div className="flex-1 overflow-y-auto overflow-x-hidden px-2 pb-2">
             {isOpen ? (
@@ -417,10 +428,11 @@ const ChatSidebar = forwardRef(
                   ref={countryDropdownRef}
                 >
                   {/* Name row with inline region chip */}
-                  <div className="flex items-center gap-1.5">
+                  <div className="flex flex-wrap items-center gap-1.5">
                     <p className="text-[13px] font-medium text-[#111] truncate leading-tight">
                       {userFirstName}
                     </p>
+                    <SidebarPlanTag refreshKey={usageRefreshKey} />
                     <button
                       onClick={() => setCountryDropdownOpen((prev) => !prev)}
                       title={
@@ -477,6 +489,8 @@ const ChatSidebar = forwardRef(
             ) : (
               /* ── Collapsed footer ── */
               <>
+                <SidebarPlanTag refreshKey={usageRefreshKey} compact />
+
                 {/* Country trigger */}
                 <div className="relative" ref={countryDropdownRef}>
                   <button

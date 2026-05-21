@@ -10,6 +10,7 @@ const PUBLIC_API_ROUTES = [
   '/api/auth/login',
   '/api/otp/send',
   '/api/otp/verify',
+  '/api/webhook/stripe',
 ];
 
 // Verify JWT using Web Crypto (Edge-compatible, no jsonwebtoken needed)

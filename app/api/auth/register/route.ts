@@ -6,6 +6,7 @@
 import { NextRequest } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { hashPassword, signToken } from '@/lib/auth';
+import { ensureBillingInitialized } from '@/lib/billing/usage';
 import { queryOne } from '@/lib/db';
 import { ok, err, isValidEmail, isStrongPassword } from '@/lib/helpers';
 import type { UserRow } from '@/types';
@@ -37,6 +38,8 @@ export async function POST(req: NextRequest) {
     );
 
     if (!user) return err('Failed to create account.', 500);
+
+    await ensureBillingInitialized(user.id);
 
     const token = signToken({ userId: user.id, email: user.email });
     return ok({ token, user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, isVerified: user.is_verified } }, 201);

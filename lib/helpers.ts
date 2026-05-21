@@ -13,6 +13,15 @@ export function err(message: string, status = 400): NextResponse {
   return NextResponse.json({ error: message }, { status });
 }
 
+export function errCode(
+  code: string,
+  message: string,
+  status: number,
+  extra?: Record<string, unknown>
+): NextResponse {
+  return NextResponse.json({ code, error: message, ...extra }, { status });
+}
+
 // ── Validation ────────────────────────────────────────────────────────────────
 
 export function isValidEmail(email: string): boolean {
