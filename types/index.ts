@@ -100,7 +100,18 @@ export interface ChatMessageRow {
   sources: Source[] | null;
   feedback_type: string | null;
   feedback_reason: string | null;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  total_tokens: number | null;
+  latency: number | null;
   created_at: string;
+}
+
+export interface AiTokenStatus {
+  user_id: string;
+  is_subscribed: boolean;
+  total_tokens_used: number;
+  token_limit: number;
 }
 
 export interface Source {

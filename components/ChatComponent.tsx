@@ -9,7 +9,7 @@ import { CHAT_ATTACHMENT_ACCEPT } from '@/lib/attachments';
 import { useChatAttachments } from '@/hooks/useChatAttachments';
 import type { BillingUsageResponse } from '@/services/apiClient';
 import LimitExceededOverlay from './billing/LimitExceededOverlay';
-import type { Message, Source } from './ChatWithSidebar';
+import type { Message, Source, TokenStatus } from './ChatWithSidebar';
 import { MessageActions, CopyIconButton } from './chat/MessageActions';
 import { ReferencesSection } from './chat/ReferencesSection';
 import { AttachmentPreview } from './chat/AttachmentPreview';
@@ -25,6 +25,7 @@ type ChatComponentProps = {
   onRunStream: (query: string, category: string, displayContent: string) => void;
   isLimitBlocked?: boolean;
   usage?: BillingUsageResponse | null;
+  tokenStatus?: TokenStatus | null;
   onRequestUpgrade?: () => void;
   onToggleSidebar: () => void;
   isSidebarOpen: boolean;
@@ -45,6 +46,7 @@ const ChatComponent = ({
   onRunStream,
   isLimitBlocked = false,
   usage = null,
+  tokenStatus = null,
   onRequestUpgrade,
   onToggleSidebar,
   isSidebarOpen,
@@ -326,6 +328,43 @@ const ChatComponent = ({
 
       <div className="sticky bottom-0 z-10 flex-shrink-0 border-t border-black/[0.09] bg-[#fafaf8]/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-sm sm:px-4 sm:pb-4 sm:pt-3">
         <div className="relative mx-auto w-full max-w-3xl">
+          {/* Token usage progress bar — shown once token status is known */}
+          {tokenStatus && (() => {
+            const used = tokenStatus.totalTokensUsed;
+            const limit = tokenStatus.tokenLimit;
+            const pct = limit > 0 ? Math.min(100, (used / limit) * 100) : 0;
+            const remaining = Math.max(0, limit - used);
+            const remainingPct = limit > 0 ? Math.max(0, 100 - pct) : 100;
+            const barColor =
+              pct >= 100
+                ? 'bg-red-500'
+                : pct >= 80
+                ? 'bg-amber-500'
+                : pct >= 60
+                ? 'bg-amber-400'
+                : 'bg-[#1D9E75]';
+            const fmt = (n: number) =>
+              n >= 1000 ? `${(n / 1000).toFixed(1)}k` : String(n);
+            return (
+              <div
+                className="mb-2"
+                title={`${used.toLocaleString()} / ${limit.toLocaleString()} tokens used · ${remaining.toLocaleString()} remaining`}
+              >
+                <div className="mb-1 flex items-center justify-between gap-2 text-[11px] text-[#888]">
+                  <span>Context tokens</span>
+                  <span className={`font-semibold ${pct >= 80 ? 'text-amber-700' : 'text-[#555]'}`}>
+                    {remainingPct.toFixed(1)}% remaining &nbsp;·&nbsp; {fmt(used)} / {fmt(limit)}
+                  </span>
+                </div>
+                <div className="h-1.5 overflow-hidden rounded-full bg-[#E8F5F0]">
+                  <div
+                    className={`h-full rounded-full transition-all duration-500 ${barColor}`}
+                    style={{ width: `${pct}%` }}
+                  />
+                </div>
+              </div>
+            );
+          })()}
           {attachmentError && (
             <p className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-center text-xs text-red-700">
               {attachmentError}

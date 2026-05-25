@@ -1,22 +1,40 @@
 /**
  * POST /api/chat/sessions/[id]/send
  * Check usage → save user message → proxy AI stream → save AI message → increment usage on success.
+ * On stream completion also fetches AI-server token status and forwards it in the 'done' event.
  */
 import { NextRequest } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { AuthError, requireAuth } from '@/lib/auth';
-import { streamQuery } from '@/lib/ai';
+import { streamQuery, getAiBaseUrl } from '@/lib/ai';
 import { checkCanSend, incrementUsage } from '@/lib/billing/usage';
 import { insertChatMessage } from '@/lib/chat/messages';
 import { assertSessionOwner } from '@/lib/chat/session';
 import { err, errCode } from '@/lib/helpers';
-import type { Source } from '@/types';
+import type { AiTokenStatus, Source } from '@/types';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
 
 function sseLine(payload: Record<string, unknown>): string {
   return `data: ${JSON.stringify(payload)}\n\n`;
+}
+
+async function fetchAiTokenStatus(userId: string): Promise<AiTokenStatus | null> {
+  try {
+    const baseUrl = getAiBaseUrl();
+    const headers: Record<string, string> = {};
+    const apiKey = process.env.AI_SERVICE_API_KEY;
+    if (apiKey) headers['X-API-Key'] = apiKey;
+    const res = await fetch(
+      `${baseUrl}/api/v1/subscription/status/${userId}`,
+      { headers, cache: 'no-store' }
+    );
+    if (!res.ok) return null;
+    return (await res.json()) as AiTokenStatus;
+  } catch {
+    return null;
+  }
 }
 
 export async function POST(
@@ -72,6 +90,8 @@ export async function POST(
       category: category ?? null,
     });
 
+    const requestStart = Date.now();
+
     const aiResponse = await streamQuery({
       query: queryText.trim(),
       country_code,
@@ -93,6 +113,11 @@ export async function POST(
     let currentSources: Source[] = [];
     let receivedAnyContent = false;
     let clientAborted = false;
+
+    // Token counts parsed from AI stream events
+    let promptTokens: number | null = null;
+    let completionTokens: number | null = null;
+    let totalTokens: number | null = null;
 
     req.signal.addEventListener('abort', () => {
       clientAborted = true;
@@ -121,6 +146,16 @@ export async function POST(
                 ...(jsonData.data.db_sources || []),
                 ...(jsonData.data.web_sources || []),
               ];
+              // Capture token counts if the AI service includes them in metadata
+              if (jsonData.data.prompt_tokens != null) promptTokens = Number(jsonData.data.prompt_tokens);
+              if (jsonData.data.completion_tokens != null) completionTokens = Number(jsonData.data.completion_tokens);
+              if (jsonData.data.total_tokens != null) totalTokens = Number(jsonData.data.total_tokens);
+            }
+            // Some AI backends emit a dedicated 'usage' event at the end of the stream
+            if (jsonData.type === 'usage' && jsonData.data) {
+              if (jsonData.data.prompt_tokens != null) promptTokens = Number(jsonData.data.prompt_tokens);
+              if (jsonData.data.completion_tokens != null) completionTokens = Number(jsonData.data.completion_tokens);
+              if (jsonData.data.total_tokens != null) totalTokens = Number(jsonData.data.total_tokens);
             }
             if (jsonData.type === 'content' && jsonData.data) {
               const chunk =
@@ -180,25 +215,45 @@ export async function POST(
             return;
           }
 
+          const latencyMs = Date.now() - requestStart;
           const aiMessageId = uuidv4();
-          await insertChatMessage({
-            messageId: aiMessageId,
-            sessionId: params.id,
-            userId: authUser.userId,
-            messageType: 'ai',
-            content: fullContent,
-            region: region ?? null,
-            category: category ?? null,
-            sources: currentSources.length > 0 ? currentSources : undefined,
-          });
 
-          await incrementUsage(authUser.userId);
+          // Persist AI message and fetch token status from AI server concurrently
+          const [, tokenStatus] = await Promise.all([
+            insertChatMessage({
+              messageId: aiMessageId,
+              sessionId: params.id,
+              userId: authUser.userId,
+              messageType: 'ai',
+              content: fullContent,
+              region: region ?? null,
+              category: category ?? null,
+              sources: currentSources.length > 0 ? currentSources : undefined,
+              promptTokens,
+              completionTokens,
+              totalTokens,
+              latency: latencyMs,
+            }),
+            fetchAiTokenStatus(authUser.userId),
+          ]);
+
+          await incrementUsage(authUser.userId, totalTokens ?? 0);
 
           controller.enqueue(
             encoder.encode(
               sseLine({
                 type: 'done',
-                data: { aiMessageId, userMessageId },
+                data: {
+                  aiMessageId,
+                  userMessageId,
+                  tokenStatus: tokenStatus
+                    ? {
+                        totalTokensUsed: tokenStatus.total_tokens_used,
+                        tokenLimit: tokenStatus.token_limit,
+                        isSubscribed: tokenStatus.is_subscribed,
+                      }
+                    : null,
+                },
               })
             )
           );

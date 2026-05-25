@@ -23,6 +23,12 @@ export type Message = {
 };
 export type SessionStreamState = { messages: Message[]; isLoading: boolean; streamingSources: { db_sources: any[]; web_sources: any[] } };
 
+export type TokenStatus = {
+  totalTokensUsed: number;
+  tokenLimit: number;
+  isSubscribed: boolean;
+};
+
 const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories }: any) => {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
@@ -37,6 +43,7 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
   const [limitBlocked, setLimitBlocked] = useState(false);
   const [upgradeOpen, setUpgradeOpen] = useState(false);
   const [usageRefreshKey, setUsageRefreshKey] = useState(0);
+  const [tokenStatus, setTokenStatus] = useState<TokenStatus | null>(null);
   const { usage, isAtLimit } = useBillingUsage(usageRefreshKey);
   const openUpgrade = useCallback(() => setUpgradeOpen(true), []);
   const bumpUsage = useCallback(() => setUsageRefreshKey((k) => k + 1), []);
@@ -125,6 +132,17 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
         }
       } catch (err) { console.error('Failed to initialize session:', err); }
     })();
+  }, []);
+
+  // Fetch token status on mount so the progress bar shows before the first message
+  useEffect(() => {
+    billingApi.getTokenStatus().then((status) => {
+      setTokenStatus({
+        totalTokensUsed: status.totalTokensUsed,
+        tokenLimit: status.tokenLimit,
+        isSubscribed: status.isSubscribed,
+      });
+    }).catch(() => { /* non-fatal: bar appears after first send */ });
   }, []);
 
   const createNewSession = async () => {
@@ -263,6 +281,10 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
 
             if (jsonData.type === 'done' && jsonData.data?.aiMessageId) {
               aiMessageId = jsonData.data.aiMessageId as string;
+              // Update token status from AI server response included in done event
+              if (jsonData.data.tokenStatus) {
+                setTokenStatus(jsonData.data.tokenStatus as TokenStatus);
+              }
               bumpUsage();
             }
 
@@ -366,6 +388,7 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
             isLoading={currentState!.isLoading}
             streamingSources={currentState!.streamingSources}
             usage={usage}
+            tokenStatus={tokenStatus}
             onSetMessages={(updater: any) =>
               patchSessionState(currentSessionId, (prev) => ({
                 messages:

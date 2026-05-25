@@ -208,8 +208,16 @@ export type BillingPlanListing = {
   features: Record<string, unknown> | null;
 };
 
+export type TokenStatusResponse = {
+  userId: string;
+  isSubscribed: boolean;
+  totalTokensUsed: number;
+  tokenLimit: number;
+};
+
 export const billingApi = {
   getUsage: () => request<BillingUsageResponse>('/api/billing/usage'),
+  getTokenStatus: () => request<TokenStatusResponse>('/api/billing/token-status'),
   getPlans: () =>
     request<{ plans: BillingPlanListing[] }>('/api/billing/plans'),
   createCheckoutSession: (planCode: string) =>
