@@ -437,20 +437,36 @@ const ChatSidebar = forwardRef(
             {isOpen ? (
               /* ── Expanded footer ── */
               <div ref={profilePopoverRef} className="relative">
-                {/* Clickable user row */}
-                <button
-                  type="button"
-                  onClick={() => setProfilePopoverOpen(v => !v)}
-                  className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg transition-colors text-left ${profilePopoverOpen ? "bg-black/[0.06]" : "hover:bg-black/[0.04]"}`}
-                >
-                  {/* Name row with inline region chip */}
-                  <div className="flex items-center gap-1.5">
-                    <p className="text-[13px] font-medium text-[#111] truncate leading-tight">
-                      {userFirstName}
-                    </p>
+                {/* Row: avatar button + country chip side by side */}
+                <div className="flex items-center gap-1.5 px-1">
+                  {/* Clickable user info — opens profile popover */}
+                  <button
+                    type="button"
+                    onClick={() => setProfilePopoverOpen(v => !v)}
+                    className={`flex-1 flex items-center gap-2 px-1 py-2 rounded-lg transition-colors text-left min-w-0 ${profilePopoverOpen ? "bg-black/[0.06]" : "hover:bg-black/[0.04]"}`}
+                  >
+                    {/* Avatar */}
+                    <div className="w-7 h-7 bg-[#1D9E75] rounded-full flex items-center justify-center flex-shrink-0">
+                      <span className="text-xs font-medium text-white">
+                        {userFirstName.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                    {/* Name + email */}
+                    <div className="min-w-0">
+                      <p className="text-[13px] font-medium text-[#111] truncate leading-tight">
+                        {userFirstName}
+                      </p>
+                      <p className="text-[11px] text-[#999] truncate leading-tight mt-0.5">
+                        {userEmail}
+                      </p>
+                    </div>
+                  </button>
+
+                  {/* Country chip — sibling of profile button, NOT inside it */}
+                  <div className="relative flex-shrink-0" ref={countryDropdownRef}>
                     <button
                       type="button"
-                      onClick={e => { e.stopPropagation(); setCountryDropdownOpen(v => !v); }}
+                      onClick={() => setCountryDropdownOpen(v => !v)}
                       title={selectedCountry ? `Region: ${COUNTRIES[selectedCountry].label}` : "Select region"}
                       className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border transition-all duration-150 ${
                         countryDropdownOpen
@@ -471,13 +487,14 @@ const ChatSidebar = forwardRef(
                         <Globe className="h-2.5 w-2.5" />
                       )}
                     </button>
+                    {/* Dropdown opens upward */}
                     {countryDropdownOpen && (
                       <div className="absolute bottom-full mb-2 right-0 w-52 z-50">
                         <RegionDropdown selected={selectedCountry} onSelect={handleSelectCountry} />
                       </div>
                     )}
                   </div>
-                </button>
+                </div>
 
                 {/* Profile popover — opens upward */}
                 {profilePopoverOpen && (
