@@ -16,6 +16,7 @@ function getJwtSecret(): string {
 export interface JWTPayload {
   userId: string;
   email: string;
+  role?: string;
   iat?: number;
   exp?: number;
 }
@@ -44,6 +45,34 @@ export function requireAuth(req: NextRequest): JWTPayload {
   const user = getAuthUser(req);
   if (!user) throw new AuthError('Unauthorized. Please log in.');
   return user;
+}
+
+// ── Admin guard ───────────────────────────────────────────────────────────────
+
+export class ForbiddenError extends Error {
+  status = 403;
+  constructor(message = 'Forbidden. Admin access required.') {
+    super(message);
+    this.name = 'ForbiddenError';
+  }
+}
+
+/**
+ * Verifies the request is authenticated AND the user has role = 'admin'.
+ * Throws AuthError (401) if not authenticated, ForbiddenError (403) if not admin.
+ * Requires a DB lookup — import queryOne inside the route to avoid circular deps.
+ */
+export async function requireAdmin(
+  req: NextRequest,
+  queryOne: <T>(sql: string, params?: unknown[]) => Promise<T | null>
+): Promise<JWTPayload> {
+  const authUser = requireAuth(req);
+  const row = await queryOne<{ role: string }>(
+    'SELECT role FROM users WHERE id = $1',
+    [authUser.userId]
+  );
+  if (!row || row.role !== 'admin') throw new ForbiddenError();
+  return authUser;
 }
 
 // ── Password ──────────────────────────────────────────────────────────────────

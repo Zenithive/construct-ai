@@ -1,6 +1,6 @@
 /**
  * middleware.ts
- * Protects /dashboard and all /api/* routes (except public auth endpoints).
+ * Protects /dashboard, /admin, and all /api/* routes (except public auth endpoints).
  * Uses Web Crypto API — compatible with Next.js Edge Runtime.
  */
 import { NextRequest, NextResponse } from 'next/server';
@@ -8,15 +8,17 @@ import { NextRequest, NextResponse } from 'next/server';
 const PUBLIC_API_ROUTES = [
   '/api/auth/register',
   '/api/auth/login',
+  '/api/auth/forgot-password',
+  '/api/auth/reset-password',
   '/api/otp/send',
   '/api/otp/verify',
 ];
 
 // Verify JWT using Web Crypto (Edge-compatible, no jsonwebtoken needed)
-async function verifyJWT(token: string, secret: string): Promise<boolean> {
+async function verifyJWT(token: string, secret: string): Promise<{ valid: boolean; payload: Record<string, unknown> | null }> {
   try {
     const parts = token.split('.');
-    if (parts.length !== 3) return false;
+    if (parts.length !== 3) return { valid: false, payload: null };
 
     const encoder = new TextEncoder();
     const keyData = encoder.encode(secret);
@@ -35,15 +37,15 @@ async function verifyJWT(token: string, secret: string): Promise<boolean> {
     );
 
     const valid = await crypto.subtle.verify('HMAC', key, signature, data);
-    if (!valid) return false;
+    if (!valid) return { valid: false, payload: null };
 
     // Check expiry
     const payload = JSON.parse(atob(parts[1].replace(/-/g, '+').replace(/_/g, '/')));
-    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return false;
+    if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) return { valid: false, payload: null };
 
-    return true;
+    return { valid: true, payload };
   } catch {
-    return false;
+    return { valid: false, payload: null };
   }
 }
 
@@ -56,9 +58,21 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     const token = req.cookies.get('token')?.value
       ?? req.headers.get('authorization')?.replace('Bearer ', '');
 
-    if (!token || !(await verifyJWT(token, secret))) {
-      return NextResponse.redirect(new URL('/', req.url));
-    }
+    if (!token) return NextResponse.redirect(new URL('/', req.url));
+    const { valid } = await verifyJWT(token, secret);
+    if (!valid) return NextResponse.redirect(new URL('/', req.url));
+    return NextResponse.next();
+  }
+
+  // ── Protect /admin ────────────────────────────────────────────────────────
+  // Middleware only checks token validity; role check happens in the API/page.
+  if (pathname.startsWith('/admin')) {
+    const token = req.cookies.get('token')?.value
+      ?? req.headers.get('authorization')?.replace('Bearer ', '');
+
+    if (!token) return NextResponse.redirect(new URL('/', req.url));
+    const { valid } = await verifyJWT(token, secret);
+    if (!valid) return NextResponse.redirect(new URL('/', req.url));
     return NextResponse.next();
   }
 
@@ -72,7 +86,8 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
     }
 
     const token = authHeader.slice(7).trim();
-    if (!(await verifyJWT(token, secret))) {
+    const { valid } = await verifyJWT(token, secret);
+    if (!valid) {
       return NextResponse.json({ error: 'Unauthorized. Invalid or expired token.' }, { status: 401 });
     }
     return NextResponse.next();
@@ -82,5 +97,5 @@ export async function middleware(req: NextRequest): Promise<NextResponse> {
 }
 
 export const config = {
-  matcher: ['/dashboard/:path*', '/api/:path*'],
+  matcher: ['/dashboard/:path*', '/admin/:path*', '/api/:path*'],
 };
