@@ -16,6 +16,9 @@ import {
   PanelLeftOpen,
   Globe,
   Clock,
+  User,
+  ShieldCheck,
+  ChevronRight,
 } from "lucide-react";
 import { useRouter } from "next/navigation";
 import {
@@ -29,6 +32,7 @@ import {
 import ConfirmModal from "./common/ConfirmModal";
 import { RegionDropdown } from "./common/RegionDropdown";
 import { COUNTRIES, type CountryKey } from "@/constants/countries";
+import EditProfileModal from "./auth/EditProfileModal";
 
 type ChatSession = {
   id: string;
@@ -65,18 +69,21 @@ const ChatSidebar = forwardRef(
     const [sessions, setSessions] = useState<ChatSession[]>([]);
     const [isLoading, setIsLoading] = useState(true);
     const [userFirstName, setUserFirstName] = useState("User");
+    const [userLastName, setUserLastName] = useState("");
     const [userEmail, setUserEmail] = useState("");
+    const [userRole, setUserRole] = useState<string>("user");
     const [logoutModal, setLogoutModal] = useState(false);
     const [deleteModal, setDeleteModal] = useState<string | null>(null);
-    const [selectedCountry, setSelectedCountry] = useState<CountryKey | null>(
-      null,
-    );
+    const [selectedCountry, setSelectedCountry] = useState<CountryKey | null>(null);
     const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
     const [historyPopoverOpen, setHistoryPopoverOpen] = useState(false);
+    const [profilePopoverOpen, setProfilePopoverOpen] = useState(false);
+    const [editProfileOpen, setEditProfileOpen] = useState(false);
     const [popoverPos, setPopoverPos] = useState({ top: 0, left: 0 });
     const countryDropdownRef = useRef<HTMLDivElement>(null);
     const historyPopoverRef = useRef<HTMLDivElement>(null);
     const historyBtnRef = useRef<HTMLButtonElement>(null);
+    const profilePopoverRef = useRef<HTMLDivElement>(null);
     const router = useRouter();
 
     useImperativeHandle(ref, () => ({ refreshSessions: loadChatSessions }));
@@ -116,12 +123,29 @@ const ChatSidebar = forwardRef(
         document.removeEventListener("mousedown", handleClickOutside);
     }, [historyPopoverOpen]);
 
+    useEffect(() => {
+      const handleClickOutside = (e: MouseEvent) => {
+        if (
+          profilePopoverRef.current &&
+          !profilePopoverRef.current.contains(e.target as Node)
+        ) {
+          setProfilePopoverOpen(false);
+        }
+      };
+      if (profilePopoverOpen)
+        document.addEventListener("mousedown", handleClickOutside);
+      return () =>
+        document.removeEventListener("mousedown", handleClickOutside);
+    }, [profilePopoverOpen]);
+
     const loadUserInfo = () => {
       const user = getUser();
       if (user?.firstName) setUserFirstName(user.firstName as string);
       else if (user?.email)
         setUserFirstName((user.email as string).split("@")[0]);
+      if (user?.lastName) setUserLastName(user.lastName as string);
       if (user?.email) setUserEmail(user.email as string);
+      if (user?.role) setUserRole(user.role as string);
 
       // Initialise country dropdown from stored user (default to England)
       const storedCountry = (user?.country as string) || "England";
@@ -169,6 +193,15 @@ const ChatSidebar = forwardRef(
       removeToken();
       removeUser();
       router.push("/");
+    };
+
+    const handleSaveProfile = async (firstName: string, lastName: string) => {
+      await usersApi.updateProfile(firstName, lastName);
+      // Sync localStorage
+      const user = getUser();
+      if (user) setUser({ ...user, firstName, lastName });
+      setUserFirstName(firstName);
+      setUserLastName(lastName);
     };
 
     const handleSelectCountry = async (key: CountryKey) => {
@@ -403,18 +436,12 @@ const ChatSidebar = forwardRef(
           >
             {isOpen ? (
               /* ── Expanded footer ── */
-              <div className="flex items-center gap-2 px-2 py-2 rounded-lg hover:bg-black/[0.04] transition-colors cursor-default">
-                {/* Avatar */}
-                <div className="w-7 h-7 bg-[#1D9E75] rounded-full flex items-center justify-center flex-shrink-0">
-                  <span className="text-xs font-medium text-white">
-                    {userFirstName.charAt(0).toUpperCase()}
-                  </span>
-                </div>
-
-                {/* Name + email + dropdown trigger */}
-                <div
-                  className="relative flex-1 min-w-0"
-                  ref={countryDropdownRef}
+              <div ref={profilePopoverRef} className="relative">
+                {/* Clickable user row */}
+                <button
+                  type="button"
+                  onClick={() => setProfilePopoverOpen(v => !v)}
+                  className={`w-full flex items-center gap-2 px-2 py-2 rounded-lg transition-colors text-left ${profilePopoverOpen ? "bg-black/[0.06]" : "hover:bg-black/[0.04]"}`}
                 >
                   {/* Name row with inline region chip */}
                   <div className="flex items-center gap-1.5">
@@ -422,13 +449,10 @@ const ChatSidebar = forwardRef(
                       {userFirstName}
                     </p>
                     <button
-                      onClick={() => setCountryDropdownOpen((prev) => !prev)}
-                      title={
-                        selectedCountry
-                          ? `Region: ${COUNTRIES[selectedCountry].label}`
-                          : "Select region"
-                      }
-                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border transition-all duration-150 flex-shrink-0 ${
+                      type="button"
+                      onClick={e => { e.stopPropagation(); setCountryDropdownOpen(v => !v); }}
+                      title={selectedCountry ? `Region: ${COUNTRIES[selectedCountry].label}` : "Select region"}
+                      className={`inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full border transition-all duration-150 ${
                         countryDropdownOpen
                           ? "ring-1 ring-[#5DCAA5]/40 border-[#5DCAA5]/60 bg-[#E1F5EE]"
                           : selectedCountry
@@ -438,9 +462,7 @@ const ChatSidebar = forwardRef(
                     >
                       {selectedCountry ? (
                         <>
-                          <span
-                            className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${COUNTRIES[selectedCountry].dot}`}
-                          />
+                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${COUNTRIES[selectedCountry].dot}`} />
                           <span className="text-[10px] font-bold tracking-wide text-[#555]">
                             {COUNTRIES[selectedCountry].code}
                           </span>
@@ -449,30 +471,78 @@ const ChatSidebar = forwardRef(
                         <Globe className="h-2.5 w-2.5" />
                       )}
                     </button>
+                    {countryDropdownOpen && (
+                      <div className="absolute bottom-full mb-2 right-0 w-52 z-50">
+                        <RegionDropdown selected={selectedCountry} onSelect={handleSelectCountry} />
+                      </div>
+                    )}
                   </div>
-                  <p className="text-[11px] text-[#999] truncate leading-tight mt-0.5">
-                    {userEmail}
-                  </p>
-
-                  {/* Dropdown panel — opens upward */}
-                  {countryDropdownOpen && (
-                    <div className="absolute bottom-full mb-2 left-0 w-52 z-50">
-                      <RegionDropdown
-                        selected={selectedCountry}
-                        onSelect={handleSelectCountry}
-                      />
-                    </div>
-                  )}
-                </div>
-
-                {/* Logout */}
-                <button
-                  onClick={handleLogout}
-                  title="Log out"
-                  className="p-1.5 text-[#999] hover:text-red-500 hover:bg-red-50 rounded-md transition-colors flex-shrink-0"
-                >
-                  <LogOut className="h-3.5 w-3.5" />
                 </button>
+
+                {/* Profile popover — opens upward */}
+                {profilePopoverOpen && (
+                  <div className="absolute bottom-full mb-2 left-0 right-0 z-50">
+                    <div className="bg-white border border-black/[0.09] rounded-xl shadow-lg shadow-black/[0.06] overflow-hidden">
+                      {/* User info header */}
+                      <div className="px-3.5 py-3 border-b border-black/[0.06]">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 bg-[#1D9E75] rounded-full flex items-center justify-center flex-shrink-0">
+                            <span className="text-xs font-semibold text-white">
+                              {userFirstName.charAt(0).toUpperCase()}
+                            </span>
+                          </div>
+                          <div className="min-w-0">
+                            <p className="text-[13px] font-medium text-[#111] truncate">
+                              {userFirstName} {userLastName}
+                            </p>
+                            <p className="text-[11px] text-[#999] truncate">{userEmail}</p>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Menu items */}
+                      <div className="p-1.5 space-y-0.5">
+                        {/* Edit Profile */}
+                        <button
+                          type="button"
+                          onClick={() => { setProfilePopoverOpen(false); setEditProfileOpen(true); }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-[#333] hover:bg-[#f7f7f5] transition-colors text-left"
+                        >
+                          <User className="w-4 h-4 text-[#999]" />
+                          <span>Edit Profile</span>
+                        </button>
+
+                        {/* Admin Portal — only for admins */}
+                        {userRole === "admin" && (
+                          <button
+                            type="button"
+                            onClick={() => { setProfilePopoverOpen(false); router.push("/admin"); }}
+                            className="w-full flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg text-sm text-[#0F6E56] hover:bg-[#E1F5EE] transition-colors text-left"
+                          >
+                            <div className="flex items-center gap-2.5">
+                              <ShieldCheck className="w-4 h-4 text-[#1D9E75]" />
+                              <span className="font-medium">Admin Portal</span>
+                            </div>
+                            <ChevronRight className="w-3.5 h-3.5 text-[#5DCAA5]" />
+                          </button>
+                        )}
+
+                        {/* Divider */}
+                        <div className="h-px bg-black/[0.06] my-1" />
+
+                        {/* Logout */}
+                        <button
+                          type="button"
+                          onClick={() => { setProfilePopoverOpen(false); handleLogout(); }}
+                          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 transition-colors text-left"
+                        >
+                          <LogOut className="w-4 h-4" />
+                          <span>Log out</span>
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
             ) : (
               /* ── Collapsed footer ── */
@@ -512,14 +582,73 @@ const ChatSidebar = forwardRef(
                   )}
                 </div>
 
-                {/* Logout */}
-                <button
-                  onClick={handleLogout}
-                  title="Log out"
-                  className="w-8 h-8 flex items-center justify-center text-[#999] hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors"
-                >
-                  <LogOut className="h-4 w-4" />
-                </button>
+                {/* Avatar button — opens profile popover */}
+                <div ref={profilePopoverRef} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setProfilePopoverOpen(v => !v)}
+                    title="Profile"
+                    className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${profilePopoverOpen ? "ring-2 ring-[#1D9E75]/40" : ""}`}
+                  >
+                    <div className="w-7 h-7 bg-[#1D9E75] rounded-full flex items-center justify-center">
+                      <span className="text-xs font-medium text-white">
+                        {userFirstName.charAt(0).toUpperCase()}
+                      </span>
+                    </div>
+                  </button>
+
+                  {/* Profile popover — opens to the right */}
+                  {profilePopoverOpen && (
+                    <div className="absolute bottom-0 left-full ml-2 w-52 z-50">
+                      <div className="bg-white border border-black/[0.09] rounded-xl shadow-lg shadow-black/[0.06] overflow-hidden">
+                        {/* User info header */}
+                        <div className="px-3.5 py-3 border-b border-black/[0.06]">
+                          <p className="text-[13px] font-medium text-[#111] truncate">
+                            {userFirstName} {userLastName}
+                          </p>
+                          <p className="text-[11px] text-[#999] truncate">{userEmail}</p>
+                        </div>
+
+                        {/* Menu items */}
+                        <div className="p-1.5 space-y-0.5">
+                          <button
+                            type="button"
+                            onClick={() => { setProfilePopoverOpen(false); setEditProfileOpen(true); }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-[#333] hover:bg-[#f7f7f5] transition-colors text-left"
+                          >
+                            <User className="w-4 h-4 text-[#999]" />
+                            <span>Edit Profile</span>
+                          </button>
+
+                          {userRole === "admin" && (
+                            <button
+                              type="button"
+                              onClick={() => { setProfilePopoverOpen(false); router.push("/admin"); }}
+                              className="w-full flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg text-sm text-[#0F6E56] hover:bg-[#E1F5EE] transition-colors text-left"
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <ShieldCheck className="w-4 h-4 text-[#1D9E75]" />
+                                <span className="font-medium">Admin Portal</span>
+                              </div>
+                              <ChevronRight className="w-3.5 h-3.5 text-[#5DCAA5]" />
+                            </button>
+                          )}
+
+                          <div className="h-px bg-black/[0.06] my-1" />
+
+                          <button
+                            type="button"
+                            onClick={() => { setProfilePopoverOpen(false); handleLogout(); }}
+                            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 transition-colors text-left"
+                          >
+                            <LogOut className="w-4 h-4" />
+                            <span>Log out</span>
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </div>
@@ -548,6 +677,17 @@ const ChatSidebar = forwardRef(
           onConfirm={confirmDelete}
           onCancel={() => setDeleteModal(null)}
         />
+
+        {/* Edit profile modal */}
+        {editProfileOpen && (
+          <EditProfileModal
+            firstName={userFirstName}
+            lastName={userLastName}
+            email={userEmail}
+            onClose={() => setEditProfileOpen(false)}
+            onSave={handleSaveProfile}
+          />
+        )}
       </>
     );
   },

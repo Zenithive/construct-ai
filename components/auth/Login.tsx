@@ -57,7 +57,12 @@ const Login = () => {
             </div>
           )}
           <AuthForm email={email} setEmail={setEmail} password={password} setPassword={setPassword} onSubmit={handleLogin} buttonText="Sign in" showCaptcha={false} isLoading={isLoading} />
-          <div className="mt-6 pt-5 border-t border-black/[0.07]">
+          <div className="mt-3 flex justify-end">
+            <Link href="/forgot-password" className="text-xs text-[#999] hover:text-[#1D9E75] transition-colors">
+              Forgot password?
+            </Link>
+          </div>
+          <div className="mt-5 pt-5 border-t border-black/[0.07]">
             <p className="text-center text-sm text-[#555]">
               Don&apos;t have an account?{' '}
               <Link href="/register" className="font-medium text-[#1D9E75] hover:text-[#0F6E56] transition-colors">Sign up for free</Link>
