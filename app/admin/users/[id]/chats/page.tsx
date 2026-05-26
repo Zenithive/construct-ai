@@ -7,6 +7,7 @@ import {
   Clock, ShieldCheck, LogOut, AlertCircle,
 } from 'lucide-react';
 import { getToken, removeToken, removeUser } from '@/services/apiClient';
+import { renderContent } from '@/utils/parseMessage';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
@@ -321,13 +322,26 @@ const UserChatsPage: React.FC = () => {
                       )}
 
                       <div className={`max-w-[70%] flex flex-col gap-1 ${msg.message_type === 'user' ? 'items-end' : 'items-start'}`}>
-                        <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words ${
-                          msg.message_type === 'user'
-                            ? 'bg-[#E1F5EE] text-[#111] border border-[#5DCAA5]/30 rounded-br-sm'
-                            : 'bg-[#f7f7f5] text-[#111] border border-black/[0.06] rounded-bl-sm'
-                        }`}>
-                          {msg.content}
-                        </div>
+                        {msg.message_type === 'user' ? (
+                          <div className="px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words bg-[#E1F5EE] text-[#111] border border-[#5DCAA5]/30 rounded-br-sm">
+                            {msg.content}
+                          </div>
+                        ) : (
+                          <div
+                            className="px-4 py-3 rounded-2xl rounded-bl-sm border border-black/[0.06] bg-white text-[#111] text-sm leading-relaxed break-words
+                              [&_p]:mb-3 [&_p:last-child]:mb-0
+                              [&_h1]:text-xl [&_h1]:font-semibold [&_h1]:text-gray-900 [&_h1]:mt-4 [&_h1]:mb-2
+                              [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-gray-900 [&_h2]:mt-4 [&_h2]:mb-2 [&_h2]:border-b [&_h2]:border-gray-200 [&_h2]:pb-1
+                              [&_h3]:text-base [&_h3]:font-semibold [&_h3]:text-gray-900 [&_h3]:mt-3 [&_h3]:mb-1
+                              [&_h4]:text-sm [&_h4]:font-semibold [&_h4]:text-gray-900 [&_h4]:mt-2 [&_h4]:mb-1
+                              [&_ul]:my-2 [&_ol]:my-2
+                              [&_a]:text-[#1D9E75] [&_a]:underline [&_a:hover]:text-[#0F6E56]
+                              [&_strong]:font-semibold [&_strong]:text-gray-900
+                              [&_code]:text-pink-600 [&_code]:bg-pink-50 [&_code]:px-1 [&_code]:rounded [&_code]:text-xs
+                              [&_blockquote]:border-l-4 [&_blockquote]:border-gray-300 [&_blockquote]:pl-3 [&_blockquote]:text-gray-600 [&_blockquote]:italic"
+                            dangerouslySetInnerHTML={{ __html: renderContent(msg.content) }}
+                          />
+                        )}
                         <span className="text-[11px] text-[#bbb] px-1">{fmtDateTime(msg.created_at)}</span>
                       </div>
 
