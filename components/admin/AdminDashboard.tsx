@@ -15,8 +15,8 @@ import {
   removeToken,
   removeUser,
 } from '@/services/apiClient';
+import { useRouter } from 'next/navigation';
 import EditSubscriptionModal from './EditSubscriptionModal';
-import UserChatsDrawer from './UserChatsDrawer';
 
 // ── Helpers ───────────────────────────────────────────────────────────────────
 
@@ -103,13 +103,13 @@ const SortBtn: React.FC<SortBtnProps> = ({ col, label, current, dir, onSort }) =
 const LIMIT = 10; // 10 per page so pagination is always visible
 
 const AdminDashboard: React.FC = () => {
+  const router = useRouter();
   const [stats, setStats]               = useState<AdminStatsResponse | null>(null);
   const [users, setUsers]               = useState<AdminUser[]>([]);
   const [pagination, setPagination]     = useState({ total: 0, page: 1, totalPages: 1 });
   const [isLoadingStats, setLoadingStats] = useState(true);
   const [isLoadingUsers, setLoadingUsers] = useState(true);
   const [editUser, setEditUser]         = useState<AdminUser | null>(null);
-  const [chatsUser, setChatsUser]       = useState<AdminUser | null>(null);
   const [toast, setToast]               = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   // Filters
@@ -506,7 +506,7 @@ const AdminDashboard: React.FC = () => {
                         <td className="px-4 py-3.5 text-right">
                           <div className="flex items-center justify-end gap-1.5">
                             <button
-                              onClick={() => setChatsUser(user)}
+                              onClick={() => router.push(`/admin/users/${user.id}/chats`)}
                               className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-xs text-[#555] hover:text-[#1D9E75] hover:bg-[#E1F5EE] rounded-lg border border-transparent hover:border-[#1D9E75]/20 transition-all"
                               title="View chats"
                             >
@@ -609,14 +609,6 @@ const AdminDashboard: React.FC = () => {
           user={editUser}
           onClose={() => setEditUser(null)}
           onSave={handleUpdateSubscription}
-        />
-      )}
-
-      {/* User chats drawer */}
-      {chatsUser && (
-        <UserChatsDrawer
-          user={chatsUser}
-          onClose={() => setChatsUser(null)}
         />
       )}
     </div>

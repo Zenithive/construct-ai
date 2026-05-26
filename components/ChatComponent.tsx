@@ -85,6 +85,7 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
 
   useEffect(() => {
     if (messages.length > 0 || historyLoadedRef.current) return;
+    historyLoadedRef.current = true; // set immediately to prevent re-entry
     (async () => {
       try {
         setIsLoadingHistory(true);
@@ -103,7 +104,7 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
         }));
         onSetMessages(loaded);
       } catch (err: any) { console.error('Failed to load chat history:', err?.message || err); }
-      finally { setIsLoadingHistory(false); historyLoadedRef.current = true; }
+      finally { setIsLoadingHistory(false); }
     })();
   }, [sessionId]);
 
