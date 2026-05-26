@@ -1,5 +1,9 @@
 // ── User ──────────────────────────────────────────────────────────────────────
 
+export type PlanCode = 'free' | 'pro' | 'enterprise';
+export type SubscriptionStatus = 'inactive' | 'active' | 'past_due' | 'canceled';
+export type UserRole = 'user' | 'admin';
+
 export interface UserRow {
   id: string;
   email: string;
@@ -8,7 +12,13 @@ export interface UserRow {
   lastName: string;        // DB column is "lastName" (camelCase)
   is_verified: boolean;
   country: string;         // DB column is "country"; default 'England'
+  plan_type: PlanCode;
+  subscription_status: SubscriptionStatus;
+  stripe_customer_id: string | null;
+  current_period_start: string | null;
+  current_period_end: string | null;
   created_at: string;
+  role: UserRole;
 }
 
 // ── OTP ───────────────────────────────────────────────────────────────────────
