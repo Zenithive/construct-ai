@@ -57,13 +57,24 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!message_type || !content) return err('message_type and content are required.');
     if (!['user', 'ai'].includes(message_type)) return err('message_type must be "user" or "ai".');
 
+    // Deduplication: skip if identical message was saved in the last 10 seconds
+    const recent = await queryOne<{ id: string }>(
+      `SELECT id FROM chat_messages
+       WHERE session_id = $1 AND user_id = $2 AND message_type = $3 AND content = $4
+         AND created_at > NOW() - INTERVAL '10 seconds'
+       LIMIT 1`,
+      [params.id, authUser.userId, message_type, content]
+    );
+    if (recent) {
+      return ok({ message: { id: recent.id } }, 200);
+    }
+
     const messageId = uuidv4();
     await query(
       `INSERT INTO chat_messages (id, session_id, user_id, message_type, content, citations, confidence, region, category, sources, created_at)
        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())`,
       [messageId, params.id, authUser.userId, message_type, content, citations ? JSON.stringify(citations) : null, confidence ?? null, region ?? null, category ?? null, sources ? JSON.stringify(sources) : null]
     );
-
     // Bump session updated_at
     await query('UPDATE chat_sessions SET updated_at = NOW() WHERE id = $1', [params.id]);
 
