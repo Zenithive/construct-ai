@@ -243,6 +243,91 @@ export const billingApi = {
 export const usersApi = {
   updateCountry: (country: string) =>
     request('/api/users/country', { method: 'PATCH', body: JSON.stringify({ country }) }),
+  updateProfile: (firstName: string, lastName: string) =>
+    request('/api/users', { method: 'PATCH', body: JSON.stringify({ firstName, lastName }) }),
+};
+
+// ── Admin API ─────────────────────────────────────────────────────────────────
+
+export type AdminUser = {
+  id: string;
+  email: string;
+  firstName: string;
+  lastName: string;
+  isVerified: boolean;
+  country: string;
+  planType: string;
+  subscriptionStatus: string;
+  stripeCustomerId: string | null;
+  periodStart: string | null;
+  periodEnd: string | null;
+  createdAt: string;
+  role: string;
+  chatCount: number;
+  totalTokens: number;
+  totalMessages: number;
+};
+
+export type AdminUsersResponse = {
+  users: AdminUser[];
+  pagination: {
+    total: number;
+    page: number;
+    limit: number;
+    totalPages: number;
+  };
+};
+
+export type AdminStatsResponse = {
+  totalUsers: number;
+  freeUsers: number;
+  proUsers: number;
+  enterpriseUsers: number;
+  activeSubscriptions: number;
+  newUsers30d: number;
+  totalChats: number;
+  totalTokens: number;
+};
+
+export type AdminUserFilters = {
+  page?: number;
+  limit?: number;
+  search?: string;
+  plan?: string;
+  status?: string;
+  dateFrom?: string;
+  dateTo?: string;
+  sortBy?: string;
+  sortDir?: 'asc' | 'desc';
+};
+
+export const adminApi = {
+  getStats: () =>
+    request<AdminStatsResponse>('/api/admin/stats'),
+
+  getUsers: (filters: AdminUserFilters = {}) => {
+    const sp = new URLSearchParams();
+    if (filters.page)     sp.set('page',     String(filters.page));
+    if (filters.limit)    sp.set('limit',    String(filters.limit));
+    if (filters.search)   sp.set('search',   filters.search);
+    if (filters.plan)     sp.set('plan',     filters.plan);
+    if (filters.status)   sp.set('status',   filters.status);
+    if (filters.dateFrom) sp.set('dateFrom', filters.dateFrom);
+    if (filters.dateTo)   sp.set('dateTo',   filters.dateTo);
+    if (filters.sortBy)   sp.set('sortBy',   filters.sortBy);
+    if (filters.sortDir)  sp.set('sortDir',  filters.sortDir);
+    return request<AdminUsersResponse>(`/api/admin/users?${sp.toString()}`);
+  },
+
+  updateSubscription: (
+    userId: string,
+    planType: string,
+    subscriptionStatus: string
+  ) =>
+    request<{ message: string; user: AdminUser }>(
+      `/api/admin/users/${userId}/subscription`,
+      { method: 'PATCH', body: JSON.stringify({ planType, subscriptionStatus }) }
+    ),
 };
 
 // ── Upload API ────────────────────────────────────────────────────────────────

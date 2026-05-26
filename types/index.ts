@@ -2,6 +2,7 @@
 
 export type PlanCode = 'free' | 'pro' | 'enterprise';
 export type SubscriptionStatus = 'inactive' | 'active' | 'past_due' | 'canceled';
+export type UserRole = 'user' | 'admin';
 
 export interface UserRow {
   id: string;
@@ -17,6 +18,7 @@ export interface UserRow {
   current_period_start: string | null;
   current_period_end: string | null;
   created_at: string;
+  role: UserRole;          // DB column is "role"; default 'user'
 }
 
 // ── Billing ───────────────────────────────────────────────────────────────────
