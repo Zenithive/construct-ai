@@ -21,6 +21,8 @@ export async function POST(req: NextRequest) {
     const formData = await req.formData();
     const file = formData.get('file') as File | null;
     const submittedUserId = formData.get('user_id');
+    const submittedSessionId = formData.get('session_id');
+    console.log('[POST /api/upload] user_id:', submittedUserId, '| session_id:', submittedSessionId);
     if (submittedUserId != null && String(submittedUserId) !== authUser.userId) {
       return err('user_id does not match authenticated user.', 403);
     }

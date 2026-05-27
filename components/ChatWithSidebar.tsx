@@ -17,6 +17,7 @@ export type Message = {
   sources?: Source[];
   feedback_type?: 'Like' | 'Dislike' | null;
   feedback_reason?: string | null;
+  attachments?: string[]; // file names attached by the user
 };
 export type SessionStreamState = { messages: Message[]; isLoading: boolean; streamingSources: { db_sources: any[]; web_sources: any[] } };
 
