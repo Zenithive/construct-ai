@@ -2,6 +2,7 @@
 
 export type PlanCode = 'free' | 'pro' | 'enterprise';
 export type SubscriptionStatus = 'inactive' | 'active' | 'past_due' | 'canceled';
+export type UserRole = 'user' | 'admin';
 
 export interface UserRow {
   id: string;
@@ -17,54 +18,7 @@ export interface UserRow {
   current_period_start: string | null;
   current_period_end: string | null;
   created_at: string;
-}
-
-// ── Billing ───────────────────────────────────────────────────────────────────
-
-export interface SubscriptionPlanRow {
-  id: string;
-  name: string;
-  code: PlanCode;
-  price_monthly: string | null;  // DECIMAL returned as string from pg
-  message_limit: number | null;
-  features: Record<string, unknown> | null;
-  created_at: string;
-}
-
-export interface UsageTrackingRow {
-  id: string;
-  user_id: string;
-  used_messages: number;
-  used_tokens: number;
-  period_start: string;
-  period_end: string;
-  created_at: string;
-}
-
-export interface SubscriptionRow {
-  id: string;
-  user_id: string;
-  plan_code: string;
-  provider: string;
-  provider_subscription_id: string | null;
-  status: string | null;
-  amount: string | null;
-  currency: string;
-  started_at: string | null;
-  expires_at: string | null;
-  created_at: string;
-}
-
-export interface PaymentRow {
-  id: string;
-  user_id: string;
-  subscription_id: string | null;
-  provider_payment_id: string | null;
-  amount: string | null;
-  currency: string;
-  status: string | null;
-  payment_method: string | null;
-  created_at: string;
+  role: UserRole;
 }
 
 // ── OTP ───────────────────────────────────────────────────────────────────────
