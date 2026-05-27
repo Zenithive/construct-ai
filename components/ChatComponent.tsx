@@ -1,38 +1,54 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Search, ArrowDown, Upload as Paperclip } from 'lucide-react';
-import { chatApi } from '@/services/apiClient';
-import UploadComponent from './Upload';
+import { Send, Search, ArrowDown, Upload as Paperclip, X, FileText, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
+import { chatApi, uploadApi, AI_BASE_URL, getUserId } from '@/services/apiClient';
 import { renderContent } from '@/utils/parseMessage';
 import { normalizeFeedbackType } from '@/lib/feedback';
 import type { Message, Source } from './ChatWithSidebar';
 import { MessageActions, CopyIconButton } from './chat/MessageActions';
 import { ReferencesSection } from './chat/ReferencesSection';
+import axios from 'axios';
 
 type ChatComponentProps = {
   selectedCountry: string;
   selectedCategory: string;
   regions: { value: string; label: string; flag?: string }[];
   categories: { value: string; label: string }[];
-  sessionId: string; messages: Message[]; isLoading: boolean;
+  sessionId: string;
+  messages: Message[];
+  isLoading: boolean;
   streamingSources: { db_sources: any[]; web_sources: any[] };
   onSetMessages: (updater: Message[] | ((prev: Message[]) => Message[])) => void;
   onRunStream: (query: string, category: string) => void;
-  onMessageSent: () => void; onToggleSidebar: () => void; isSidebarOpen: boolean;
+  onMessageSent: () => void;
+  onToggleSidebar: () => void;
+  isSidebarOpen: boolean;
+};
+
+type AttachedFile = {
+  id: string;
+  file: File;
+  status: 'uploading' | 'success' | 'error';
+  errorMsg?: string;
 };
 
 const BUBBLE_MAX = 'max-w-[85%] sm:max-w-2xl';
 
-const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories, sessionId, messages, isLoading, streamingSources, onSetMessages, onRunStream, onMessageSent, onToggleSidebar, isSidebarOpen }: ChatComponentProps) => {
+const ChatComponent = ({
+  selectedCountry, selectedCategory, regions, categories,
+  sessionId, messages, isLoading, streamingSources,
+  onSetMessages, onRunStream, onMessageSent, onToggleSidebar, isSidebarOpen,
+}: ChatComponentProps) => {
   const [inputMessage, setInputMessage] = useState('');
   const [isLoadingHistory, setIsLoadingHistory] = useState(false);
   const [category, setCategory] = useState(selectedCategory);
   const [isAutoScroll, setIsAutoScroll] = useState(true);
-  const [showUploadModal, setShowUploadModal] = useState(false);
+  const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const isProcessingRef = useRef(false);
   const historyLoadedRef = useRef(false);
 
@@ -43,6 +59,8 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
     'What are the environmental clearance requirements for new construction?',
   ];
 
+  // ── Markdown / citation helpers ───────────────────────────────────────────
+
   const parsePDFCitations = (text: string) => {
     const markdownLinkPattern = /\[([^\]]+)]\((https?:\/\/[^)]+)\)/gi;
     return text.replace(markdownLinkPattern, (_match, linkText, url) =>
@@ -50,7 +68,9 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
     );
   };
 
-  const renderCitationContent = (citation: string) => <span dangerouslySetInnerHTML={{ __html: parsePDFCitations(citation) }} />;
+  const renderCitationContent = (citation: string) => (
+    <span dangerouslySetInnerHTML={{ __html: parsePDFCitations(citation) }} />
+  );
 
   const renderMessageContent = (content: string, sources?: Source[]) => (
     <div
@@ -67,25 +87,32 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
     />
   );
 
+  // ── Textarea auto-resize ──────────────────────────────────────────────────
+
   const adjustTextareaHeight = useCallback(() => {
     const el = textareaRef.current;
     if (!el) return;
     el.style.height = 'auto';
-    const max = 200;
-    el.style.height = `${Math.min(el.scrollHeight, max)}px`;
+    el.style.height = `${Math.min(el.scrollHeight, 200)}px`;
   }, []);
 
-  useEffect(() => {
-    adjustTextareaHeight();
-  }, [inputMessage, adjustTextareaHeight]);
+  useEffect(() => { adjustTextareaHeight(); }, [inputMessage, adjustTextareaHeight]);
+
+  // ── Scroll helpers ────────────────────────────────────────────────────────
 
   const scrollToBottom = () => messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  const isUserAtBottom = () => { if (!scrollContainerRef.current) return true; const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current; return scrollHeight - scrollTop - clientHeight < 100; };
+  const isUserAtBottom = () => {
+    if (!scrollContainerRef.current) return true;
+    const { scrollTop, scrollHeight, clientHeight } = scrollContainerRef.current;
+    return scrollHeight - scrollTop - clientHeight < 100;
+  };
   const handleScroll = () => setIsAutoScroll(isUserAtBottom());
+
+  // ── Load history ──────────────────────────────────────────────────────────
 
   useEffect(() => {
     if (messages.length > 0 || historyLoadedRef.current) return;
-    historyLoadedRef.current = true; // set immediately to prevent re-entry
+    historyLoadedRef.current = true;
     (async () => {
       try {
         setIsLoadingHistory(true);
@@ -103,30 +130,123 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
           feedback_reason: msg.feedback_reason ?? undefined,
         }));
         onSetMessages(loaded);
-      } catch (err: any) { console.error('Failed to load chat history:', err?.message || err); }
-      finally { setIsLoadingHistory(false); }
+      } catch (err: any) {
+        console.error('Failed to load chat history:', err?.message || err);
+      } finally {
+        setIsLoadingHistory(false);
+      }
     })();
   }, [sessionId]);
 
   useEffect(() => { if (messages.length > 0 && isAutoScroll) scrollToBottom(); }, [messages, isAutoScroll]);
   useEffect(() => { setCategory(selectedCategory); }, [selectedCategory]);
 
+  // ── File upload — background, non-blocking ────────────────────────────────
+
+  const sendFileToAIBackend = async (file: File) => {
+    try {
+      const userId = getUserId();
+      if (!userId) return false;
+      const formData = new FormData();
+      formData.append('file', file, file.name);
+      formData.append('user_id', userId);
+      formData.append('session_id', sessionId);
+      const response = await axios.post(`${AI_BASE_URL}/api/v1/documents/upload`, formData);
+      return response.data.status === 'processing';
+    } catch {
+      return false;
+    }
+  };
+
+  const handleFileSelect = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files || []);
+    if (files.length === 0) return;
+    if (fileInputRef.current) fileInputRef.current.value = '';
+
+    const allowedTypes = [
+      'application/pdf',
+      'application/msword',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    ];
+
+    for (const file of files) {
+      if (!allowedTypes.includes(file.type)) {
+        const errEntry: AttachedFile = {
+          id: `err-${Date.now()}-${file.name}`,
+          file,
+          status: 'error',
+          errorMsg: 'Only PDF, DOC, DOCX allowed',
+        };
+        setAttachedFiles(prev => [...prev, errEntry]);
+        continue;
+      }
+
+      const tempId = `upload-${Date.now()}-${file.name}`;
+      // Add chip immediately so user sees it while typing
+      setAttachedFiles(prev => [...prev, { id: tempId, file, status: 'uploading' }]);
+
+      // Upload in background — does NOT block the textarea
+      (async () => {
+        try {
+          await uploadApi.uploadFile(file, sessionId);
+          await sendFileToAIBackend(file);
+          setAttachedFiles(prev =>
+            prev.map(f => f.id === tempId ? { ...f, status: 'success' } : f)
+          );
+        } catch {
+          setAttachedFiles(prev =>
+            prev.map(f => f.id === tempId ? { ...f, status: 'error', errorMsg: 'Upload failed' } : f)
+          );
+        }
+      })();
+    }
+  };
+
+  const removeAttachedFile = (id: string) => {
+    setAttachedFiles(prev => prev.filter(f => f.id !== id));
+  };
+
+  // ── Send message ──────────────────────────────────────────────────────────
+
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isProcessingRef.current || isLoading) return;
     isProcessingRef.current = true;
     const query = inputMessage.trim();
-    setInputMessage(''); setIsAutoScroll(true);
-    const userMessage: Message = { type: 'user', content: query, timestamp: new Date() };
+    setInputMessage('');
+    setIsAutoScroll(true);
+
+    // Capture successfully uploaded file names to show in the message bubble
+    const uploadedNames = attachedFiles
+      .filter(f => f.status === 'success')
+      .map(f => f.file.name);
+
+    // Clear successful chips on send; keep errored ones visible
+    setAttachedFiles(prev => prev.filter(f => f.status === 'error'));
+
+    const userMessage: Message = {
+      type: 'user',
+      content: query,
+      timestamp: new Date(),
+      ...(uploadedNames.length > 0 ? { attachments: uploadedNames } : {}),
+    };
     onSetMessages(prev => [...prev, userMessage]);
-    try { await chatApi.saveMessage(sessionId, 'user', query, { region: selectedCountry, category }); onMessageSent(); } catch (e) { console.error('Failed to save user message:', e); }
+    try {
+      await chatApi.saveMessage(sessionId, 'user', query, { region: selectedCountry, category });
+      onMessageSent();
+    } catch (e) {
+      console.error('Failed to save user message:', e);
+    }
     onRunStream(query, category);
     isProcessingRef.current = false;
   };
 
   const showHistory = isLoadingHistory && messages.length === 0;
+  const hasUploading = attachedFiles.some(f => f.status === 'uploading');
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden bg-[#fafaf8]">
+
+      {/* ── Messages scroll area ─────────────────────────────────────────── */}
       <div
         id="chat-scroll-area"
         ref={scrollContainerRef}
@@ -146,7 +266,9 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
                 <Search className="h-6 w-6 text-[#1D9E75]" />
               </div>
               <h3 className="text-xl font-semibold text-gray-900 sm:text-2xl">How can I help you today?</h3>
-              <p className="mt-2 text-sm text-gray-500 sm:text-base">Ask about construction regulations, safety standards, or compliance requirements</p>
+              <p className="mt-2 text-sm text-gray-500 sm:text-base">
+                Ask about construction regulations, safety standards, or compliance requirements
+              </p>
               <div className="mt-6 grid grid-cols-1 gap-2 text-left sm:grid-cols-2">
                 {sampleQuestions.map((question, index) => (
                   <button
@@ -167,22 +289,33 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
 
                 return (
                   <div key={index}>
-                    {/* ── User message ─────────────────────────────────── */}
+                    {/* ── User message ── */}
                     {message.type === 'user' && (
                       <div className="group flex flex-col items-end">
-                        <div
-                          className={`${BUBBLE_MAX} rounded-2xl rounded-br-md border border-[#5DCAA5]/30 bg-[#E1F5EE] px-4 py-3 text-[15px] leading-relaxed text-[#111] shadow-sm transition-shadow duration-150 hover:shadow`}
-                        >
+                        <div className={`${BUBBLE_MAX} rounded-2xl rounded-br-md border border-[#5DCAA5]/30 bg-[#E1F5EE] px-4 py-3 text-[15px] leading-relaxed text-[#111] shadow-sm transition-shadow duration-150 hover:shadow`}>
+                          {/* Attached file chips inside the bubble */}
+                          {message.attachments && message.attachments.length > 0 && (
+                            <div className="flex flex-wrap gap-1.5 mb-2">
+                              {message.attachments.map((name, i) => (
+                                <div
+                                  key={i}
+                                  className="flex items-center gap-1.5 rounded-lg border border-[#5DCAA5]/40 bg-white/70 px-2.5 py-1 text-xs font-medium text-[#0F6E56]"
+                                >
+                                  <FileText className="h-3 w-3 flex-shrink-0" />
+                                  <span className="max-w-[200px] truncate">{name}</span>
+                                </div>
+                              ))}
+                            </div>
+                          )}
                           <div className="whitespace-pre-wrap">{message.content}</div>
                         </div>
-                        {/* Copy icon — visible on hover */}
                         <div className="mt-1 flex items-center opacity-0 transition-opacity duration-150 group-hover:opacity-100">
                           <CopyIconButton text={message.content} />
                         </div>
                       </div>
                     )}
 
-                    {/* ── References section (above AI bubble) ─────────── */}
+                    {/* ── References section (above AI bubble) ── */}
                     {message.type === 'ai' && (() => {
                       const isLastAndStreaming = isThisStreaming && streamingSources.web_sources.length > 0;
                       const webSources = isLastAndStreaming
@@ -192,24 +325,18 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
                       return (
                         <div className="mb-3 flex justify-start">
                           <div className={BUBBLE_MAX}>
-                            <ReferencesSection
-                              sources={webSources}
-                              isStreaming={isLastAndStreaming}
-                            />
+                            <ReferencesSection sources={webSources} isStreaming={isLastAndStreaming} />
                           </div>
                         </div>
                       );
                     })()}
 
-                    {/* ── AI response bubble ────────────────────────────── */}
+                    {/* ── AI response bubble ── */}
                     {message.type === 'ai' && message.content && (
                       <div className="flex justify-start">
-                        <div
-                          className={`${BUBBLE_MAX} rounded-2xl rounded-bl-md border border-black/[0.09] bg-white px-4 py-3 shadow-sm`}
-                        >
+                        <div className={`${BUBBLE_MAX} rounded-2xl rounded-bl-md border border-black/[0.09] bg-white px-4 py-3 shadow-sm`}>
                           {renderMessageContent(message.content, message.sources)}
 
-                          {/* Inline DB citations */}
                           {message.citations && (
                             <div className="mt-3 border-t border-gray-100 pt-3">
                               <p className="mb-2 text-xs font-medium text-gray-500">Sources</p>
@@ -229,7 +356,6 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
                             </div>
                           )}
 
-                          {/* Action bar — hidden while streaming */}
                           {!isThisStreaming && (
                             <MessageActions
                               content={message.content}
@@ -244,7 +370,13 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
                   </div>
                 );
               })}
-              {isLoading && messages.length > 0 && messages[messages.length - 1].type === 'ai' && streamingSources.db_sources.length === 0 && streamingSources.web_sources.length === 0 && (
+
+              {/* Typing indicator */}
+              {isLoading &&
+                messages.length > 0 &&
+                messages[messages.length - 1].type === 'ai' &&
+                streamingSources.db_sources.length === 0 &&
+                streamingSources.web_sources.length === 0 && (
                 <div className="flex justify-start">
                   <div className={`${BUBBLE_MAX} flex items-center gap-2 rounded-2xl rounded-bl-md border border-black/[0.09] bg-white px-4 py-3 shadow-sm`}>
                     <div className="flex gap-1">
@@ -272,56 +404,99 @@ const ChatComponent = ({ selectedCountry, selectedCategory, regions, categories,
         )}
       </div>
 
+      {/* ── Input area ───────────────────────────────────────────────────── */}
       <div className="sticky bottom-0 z-10 flex-shrink-0 border-t border-black/[0.09] bg-[#fafaf8]/95 px-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] pt-2 backdrop-blur-sm sm:px-4 sm:pb-4 sm:pt-3">
         <div className="mx-auto w-full max-w-3xl">
-          <div className="flex items-end gap-2 rounded-xl border border-black/[0.09] bg-white p-1.5 pl-3 shadow-sm transition-[border-color,box-shadow] focus-within:border-black/[0.14] focus-within:shadow-md sm:pl-3.5">
-            <textarea
-              ref={textareaRef}
-              rows={1}
-              value={inputMessage}
-              onChange={e => { setInputMessage(e.target.value); requestAnimationFrame(adjustTextareaHeight); }}
-              onKeyDown={e => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  void handleSendMessage();
-                }
-              }}
-              placeholder="Message ConstructionAI..."
-              className="max-h-[200px] min-h-[44px] flex-1 resize-none bg-transparent py-2.5 text-[15px] leading-snug text-[#111] placeholder:text-[#999] focus:outline-none"
-            />
-            <div className="flex shrink-0 items-center gap-1 pb-1 pr-0.5">
-              <button
-                type="button"
-                onClick={() => setShowUploadModal(true)}
-                className="rounded-lg p-2 text-[#999] transition-colors hover:bg-black/[0.05] hover:text-[#555]"
-                title="Upload documents"
-              >
-                <Paperclip className="h-5 w-5" />
-              </button>
-              <button
-                type="button"
-                onClick={() => void handleSendMessage()}
-                disabled={!inputMessage.trim() || isLoading}
-                className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1D9E75] text-white shadow-sm transition-colors hover:bg-[#0F6E56] disabled:cursor-not-allowed disabled:opacity-40"
-              >
-                <Send className="h-4 w-4" />
-              </button>
+          <div className="rounded-xl border border-black/[0.09] bg-white shadow-sm transition-[border-color,box-shadow] focus-within:border-black/[0.14] focus-within:shadow-md">
+
+            {/* ── Attached file chips ── */}
+            {attachedFiles.length > 0 && (
+              <div className="flex flex-wrap gap-2 px-3 pt-3">
+                {attachedFiles.map(af => (
+                  <div
+                    key={af.id}
+                    className={`flex items-center gap-1.5 rounded-lg border px-2.5 py-1.5 text-xs font-medium transition-colors ${
+                      af.status === 'uploading'
+                        ? 'border-[#5DCAA5]/40 bg-[#E1F5EE]/60 text-[#0F6E56]'
+                        : af.status === 'success'
+                        ? 'border-[#5DCAA5]/40 bg-[#E1F5EE] text-[#0F6E56]'
+                        : 'border-red-200 bg-red-50 text-red-600'
+                    }`}
+                  >
+                    {af.status === 'uploading' && <Loader2 className="h-3 w-3 animate-spin flex-shrink-0" />}
+                    {af.status === 'success'   && <CheckCircle className="h-3 w-3 flex-shrink-0" />}
+                    {af.status === 'error'     && <AlertCircle className="h-3 w-3 flex-shrink-0" />}
+                    <FileText className="h-3 w-3 flex-shrink-0" />
+                    <span className="max-w-[160px] truncate">{af.file.name}</span>
+                    {af.status === 'uploading' && (
+                      <span className="text-[#1D9E75]/70">Uploading…</span>
+                    )}
+                    {af.status === 'error' && (
+                      <span className="text-red-500">{af.errorMsg}</span>
+                    )}
+                    <button
+                      type="button"
+                      onClick={() => removeAttachedFile(af.id)}
+                      className="ml-0.5 rounded p-0.5 hover:bg-black/[0.08] transition-colors"
+                      aria-label="Remove file"
+                    >
+                      <X className="h-3 w-3" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* ── Textarea + action buttons ── */}
+            <div className="flex items-end gap-2 p-1.5 pl-3 sm:pl-3.5">
+              <textarea
+                ref={textareaRef}
+                rows={1}
+                value={inputMessage}
+                onChange={e => { setInputMessage(e.target.value); requestAnimationFrame(adjustTextareaHeight); }}
+                onKeyDown={e => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    if (!hasUploading) void handleSendMessage();
+                  }
+                }}
+                placeholder="Message ConstructionAI..."
+                className="max-h-[200px] min-h-[44px] flex-1 resize-none bg-transparent py-2.5 text-[15px] leading-snug text-[#111] placeholder:text-[#999] focus:outline-none"
+              />
+              <div className="flex shrink-0 items-center gap-1 pb-1 pr-0.5">
+                <input
+                  type="file"
+                  ref={fileInputRef}
+                  onChange={handleFileSelect}
+                  multiple
+                  accept=".pdf,.doc,.docx"
+                  className="hidden"
+                />
+                <button
+                  type="button"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="rounded-lg p-2 text-[#999] transition-colors hover:bg-black/[0.05] hover:text-[#555]"
+                  title="Attach document"
+                >
+                  <Paperclip className="h-5 w-5" />
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleSendMessage()}
+                  disabled={!inputMessage.trim() || isLoading || hasUploading}
+                  className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1D9E75] text-white shadow-sm transition-colors hover:bg-[#0F6E56] disabled:cursor-not-allowed disabled:opacity-40"
+                  title={hasUploading ? 'Wait for upload to finish' : undefined}
+                >
+                  <Send className="h-4 w-4" />
+                </button>
+              </div>
             </div>
           </div>
-          <p className="mt-2 text-center text-xs text-[#999]">ConstructionAI can make mistakes. Verify important information.</p>
+          <p className="mt-2 text-center text-xs text-[#999]">
+            ConstructionAI can make mistakes. Verify important information.
+          </p>
         </div>
       </div>
-
-      {showUploadModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="relative max-h-[90vh] w-full max-w-4xl overflow-y-auto rounded-xl bg-white shadow-xl border border-black/[0.09]">
-            <button type="button" onClick={() => setShowUploadModal(false)} className="absolute right-4 top-4 z-10 text-gray-500 transition-colors hover:text-gray-700">
-              <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" /></svg>
-            </button>
-            <UploadComponent />
-          </div>
-        </div>
-      )}
     </div>
   );
 };
