@@ -1,5 +1,8 @@
 // ── User ──────────────────────────────────────────────────────────────────────
 
+export type PlanCode = 'free' | 'pro' | 'enterprise';
+export type SubscriptionStatus = 'inactive' | 'active' | 'past_due' | 'canceled';
+
 export interface UserRow {
   id: string;
   email: string;
@@ -8,6 +11,59 @@ export interface UserRow {
   lastName: string;        // DB column is "lastName" (camelCase)
   is_verified: boolean;
   country: string;         // DB column is "country"; default 'England'
+  plan_type: PlanCode;
+  subscription_status: SubscriptionStatus;
+  stripe_customer_id: string | null;
+  current_period_start: string | null;
+  current_period_end: string | null;
+  created_at: string;
+}
+
+// ── Billing ───────────────────────────────────────────────────────────────────
+
+export interface SubscriptionPlanRow {
+  id: string;
+  name: string;
+  code: PlanCode;
+  price_monthly: string | null;  // DECIMAL returned as string from pg
+  message_limit: number | null;
+  features: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface UsageTrackingRow {
+  id: string;
+  user_id: string;
+  used_messages: number;
+  used_tokens: number;
+  period_start: string;
+  period_end: string;
+  created_at: string;
+}
+
+export interface SubscriptionRow {
+  id: string;
+  user_id: string;
+  plan_code: string;
+  provider: string;
+  provider_subscription_id: string | null;
+  status: string | null;
+  amount: string | null;
+  currency: string;
+  started_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
+export interface PaymentRow {
+  id: string;
+  user_id: string;
+  subscription_id: string | null;
+  provider_payment_id: string | null;
+  amount: string | null;
+  currency: string;
+  status: string | null;
+  payment_method: string | null;
   created_at: string;
 }
 
