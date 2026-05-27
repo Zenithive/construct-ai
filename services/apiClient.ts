@@ -199,13 +199,14 @@ export const adminApi = {
 // ── Upload API ────────────────────────────────────────────────────────────────
 
 export const uploadApi = {
-  uploadFile: async (file: File) => {
+  uploadFile: async (file: File, sessionId?: string | null) => {
     const token = getToken();
     const userId = getUserId();
     if (!userId) throw new Error('User not found. Please log in again.');
     const formData = new FormData();
     formData.append('file', file);
     formData.append('user_id', userId);
+    if (sessionId) formData.append('session_id', sessionId);
     const res = await fetch('/api/upload', {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}` },
