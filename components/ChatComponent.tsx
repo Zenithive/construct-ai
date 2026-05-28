@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Search, ArrowDown, Upload as Paperclip, X, FileText, Loader2, CheckCircle, AlertCircle, Zap } from 'lucide-react';
+import { Send, Search, ArrowDown, Upload as Paperclip, X, FileText, Loader2, CheckCircle, AlertCircle, Zap, Menu } from 'lucide-react';
 import { chatApi, uploadApi, AI_BASE_URL, getUserId, LimitExceededError, billingApi } from '@/services/apiClient';
 import { renderContent } from '@/utils/parseMessage';
 import { normalizeFeedbackType } from '@/lib/feedback';
@@ -272,6 +272,28 @@ const ChatComponent = ({
 
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden bg-[#fafaf8]">
+
+      {/* ── Mobile top bar — only visible on mobile when sidebar is closed ── */}
+      {!isSidebarOpen && (
+        <div className="md:hidden flex items-center gap-3 px-4 h-12 border-b border-black/[0.09] bg-white flex-shrink-0">
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            className="p-1.5 text-[#555] hover:text-[#111] hover:bg-[#f0f0ec] rounded-lg transition-colors"
+            aria-label="Open sidebar"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-[#1D9E75] rounded-md flex items-center justify-center flex-shrink-0">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 21h18M3 7v14M21 7v14M6 21V11M10 21V11M14 21V11M18 21V11M3 7l9-4 9 4" />
+              </svg>
+            </div>
+            <span className="text-sm font-medium text-[#111]">Construction<span className="text-[#1D9E75]">AI</span></span>
+          </div>
+        </div>
+      )}
 
       {/* ── Messages scroll area ─────────────────────────────────────────── */}
       <div

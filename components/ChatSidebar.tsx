@@ -132,8 +132,15 @@ const ChatSidebar = forwardRef(({
 
   return (
     <>
-      {isOpen && <div className="md:hidden fixed inset-0 bg-black/30 z-30" onClick={onToggle} />}
-      <div className={`relative flex flex-col flex-shrink-0 h-full bg-[#f7f7f5] border-r border-black/[0.09] transition-all duration-300 ease-in-out ${isOpen ? "w-64" : "w-14"}`}>
+      {/* Mobile overlay backdrop */}
+      {isOpen && <div className="md:hidden fixed inset-0 bg-black/40 z-40" onClick={onToggle} />}
+      <div className={`
+        fixed md:relative inset-y-0 left-0 z-50 md:z-auto
+        flex flex-col flex-shrink-0 h-full bg-[#f7f7f5] border-r border-black/[0.09]
+        transition-all duration-300 ease-in-out
+        ${isOpen ? 'w-64 translate-x-0' : 'w-0 md:w-14 -translate-x-full md:translate-x-0'}
+        overflow-hidden
+      `}>
 
         {/* Top controls */}
         <div className={`flex items-center h-14 px-3 flex-shrink-0 ${isOpen ? "justify-between" : "justify-center"}`}>

@@ -23,7 +23,11 @@ export type SessionStreamState = { messages: Message[]; isLoading: boolean; stre
 
 const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories }: any) => {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(() => {
+    // Start closed on mobile, open on desktop
+    if (typeof window !== 'undefined') return window.innerWidth >= 768;
+    return true;
+  });
   const [usageRefreshKey, setUsageRefreshKey] = useState(0);
   const [selectedCountryCode, setSelectedCountryCode] = useState<string>(() => {
     const user = getUser();
@@ -203,8 +207,10 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
 
   return (
     <div className="flex h-full overflow-hidden bg-[#fafaf8]">
-      <ChatSidebar ref={sidebarRef} currentSessionId={currentSessionId} onNewChat={createNewSession} onSelectSession={setCurrentSessionId} onDeleteSession={handleDeleteSession} isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} onCountryChange={(code, label) => { setSelectedCountryCode(code); setSelectedCountryLabel(label); }} usageRefreshKey={usageRefreshKey} />
-      <div className="flex-1 flex flex-col overflow-hidden h-full">
+      <ChatSidebar ref={sidebarRef} currentSessionId={currentSessionId} onNewChat={createNewSession} onSelectSession={(id) => { setCurrentSessionId(id); if (window.innerWidth < 768) setIsSidebarOpen(false); }} onDeleteSession={handleDeleteSession} isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} onCountryChange={(code, label) => { setSelectedCountryCode(code); setSelectedCountryLabel(label); }} usageRefreshKey={usageRefreshKey} />
+      {/* Desktop spacer — matches sidebar width so chat doesn't go under it */}
+      <div className={`hidden md:block flex-shrink-0 transition-all duration-300 ${isSidebarOpen ? 'w-64' : 'w-14'}`} />
+      <div className="flex-1 flex flex-col overflow-hidden h-full min-w-0">
         {currentSessionId ? (
           <ChatComponent key={currentSessionId} selectedCountry={selectedCountryLabel} selectedCategory={selectedCategory} regions={regions} categories={categories} sessionId={currentSessionId} messages={currentState!.messages} isLoading={currentState!.isLoading} streamingSources={currentState!.streamingSources}
             onSetMessages={(updater: any) => patchSessionState(currentSessionId, prev => ({ messages: typeof updater === 'function' ? updater(prev.messages) : updater }))}
