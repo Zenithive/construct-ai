@@ -208,8 +208,6 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
   return (
     <div className="flex h-full overflow-hidden bg-[#fafaf8]">
       <ChatSidebar ref={sidebarRef} currentSessionId={currentSessionId} onNewChat={createNewSession} onSelectSession={(id) => { setCurrentSessionId(id); if (window.innerWidth < 768) setIsSidebarOpen(false); }} onDeleteSession={handleDeleteSession} isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} onCountryChange={(code, label) => { setSelectedCountryCode(code); setSelectedCountryLabel(label); }} usageRefreshKey={usageRefreshKey} />
-      {/* Desktop spacer — matches sidebar width so chat doesn't go under it */}
-      <div className={`hidden md:block flex-shrink-0 transition-all duration-300 ${isSidebarOpen ? 'w-64' : 'w-14'}`} />
       <div className="flex-1 flex flex-col overflow-hidden h-full min-w-0">
         {currentSessionId ? (
           <ChatComponent key={currentSessionId} selectedCountry={selectedCountryLabel} selectedCategory={selectedCategory} regions={regions} categories={categories} sessionId={currentSessionId} messages={currentState!.messages} isLoading={currentState!.isLoading} streamingSources={currentState!.streamingSources}

@@ -124,17 +124,30 @@ const ChatComponent = ({
         setIsLoadingHistory(true);
         const data = await chatApi.getMessages(sessionId) as any;
         if (!data?.messages) return;
-        const loaded: Message[] = data.messages.map((msg: any) => ({
-          id: msg.id,
-          type: msg.message_type as 'user' | 'ai',
-          content: msg.content,
-          citations: msg.citations || undefined,
-          confidence: msg.confidence || undefined,
-          sources: msg.sources || undefined,
-          timestamp: new Date(msg.created_at),
-          feedback_type: normalizeFeedbackType(msg.feedback_type) ?? undefined,
-          feedback_reason: msg.feedback_reason ?? undefined,
-        }));
+        const raw: Message[] = data.messages.map((msg: any) => {
+          // For user messages, extract attachment names stored in sources
+          const attachments = msg.message_type === 'user' && Array.isArray(msg.sources)
+            ? msg.sources.filter((s: any) => s._attachment).map((s: any) => s.title as string)
+            : undefined;
+          return {
+            id: msg.id,
+            type: msg.message_type as 'user' | 'ai',
+            content: msg.content,
+            citations: msg.citations || undefined,
+            confidence: msg.confidence || undefined,
+            sources: msg.message_type === 'ai' ? (msg.sources || undefined) : undefined,
+            timestamp: new Date(msg.created_at),
+            feedback_type: normalizeFeedbackType(msg.feedback_type) ?? undefined,
+            feedback_reason: msg.feedback_reason ?? undefined,
+            ...(attachments && attachments.length > 0 ? { attachments } : {}),
+          };
+        });
+        // Deduplicate: remove consecutive messages with same type + content
+        const loaded = raw.filter((msg, i) => {
+          if (i === 0) return true;
+          const prev = raw[i - 1];
+          return !(msg.type === prev.type && msg.content === prev.content);
+        });
         onSetMessages(loaded);
       } catch (err: any) {
         console.error('Failed to load chat history:', err?.message || err);
@@ -237,7 +250,12 @@ const ChatComponent = ({
     };
     onSetMessages(prev => [...prev, userMessage]);
     try {
-      await chatApi.saveMessage(sessionId, 'user', query, { region: selectedCountry, category });
+      await chatApi.saveMessage(sessionId, 'user', query, {
+        region: selectedCountry,
+        category,
+        // Store attachment names in sources field (user messages never have sources)
+        sources: uploadedNames.length > 0 ? uploadedNames.map(name => ({ title: name, _attachment: true })) : undefined,
+      });
       onMessageSent();
     } catch (e) {
       if (e instanceof LimitExceededError) {
@@ -273,8 +291,8 @@ const ChatComponent = ({
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden bg-[#fafaf8]">
 
-      {/* ── Mobile top bar — always visible on mobile, sticky ── */}
-      <div className="md:hidden flex items-center gap-3 px-4 h-12 border-b border-black/[0.09] bg-white flex-shrink-0 sticky top-0 z-30">
+      {/* ── Mobile top bar — always visible on mobile ── */}
+      <div className="md:hidden flex items-center gap-3 px-4 h-12 border-b border-black/[0.09] bg-white flex-shrink-0 z-30">
         <button
           type="button"
           onClick={onToggleSidebar}

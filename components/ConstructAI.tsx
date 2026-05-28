@@ -65,7 +65,7 @@ const ConstructAI = () => {
   };
 
   return (
-    <div className="bg-[#fafaf8] h-screen flex flex-col overflow-hidden">
+    <div className="bg-[#fafaf8] h-screen flex flex-col overflow-hidden" style={{ height: '100dvh' }}>
       {tabs.length > 0 && (
         <div className="bg-white border-b border-black/[0.09] flex-shrink-0 z-40">
           <div className="mx-auto px-4 sm:px-6">
