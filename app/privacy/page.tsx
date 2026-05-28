@@ -73,7 +73,7 @@ export default function PrivacyPage() {
               <li>Request deletion of your account and associated data</li>
               <li>Object to processing of your personal data</li>
             </ul>
-            <p className="mt-2">To exercise these rights, contact us at <a href="mailto:info@zenithive.com" className="text-[#1D9E75] hover:text-[#0F6E56] underline">info@zenithive.com</a>.</p>
+            <p className="mt-2">To exercise these rights, contact us at <a href="mailto:sales@zenithive.com" className="text-[#1D9E75] hover:text-[#0F6E56] underline">sales@zenithive.com</a>.</p>
           </section>
 
           <section>
@@ -93,7 +93,7 @@ export default function PrivacyPage() {
 
           <section>
             <h2 className="text-base font-semibold text-[#111] mb-3">10. Contact</h2>
-            <p>For questions about this Privacy Policy, contact us at <a href="mailto:info@zenithive.com" className="text-[#1D9E75] hover:text-[#0F6E56] underline">info@zenithive.com</a>.</p>
+            <p>For questions about this Privacy Policy, contact us at <a href="mailto:sales@zenithive.com" className="text-[#1D9E75] hover:text-[#0F6E56] underline">sales@zenithive.com</a>.</p>
           </section>
         </div>
 

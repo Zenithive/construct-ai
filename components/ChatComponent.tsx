@@ -430,7 +430,7 @@ const ChatComponent = ({
                                 Upgrade to Pro
                               </button>
                               <button
-                                onClick={() => { window.location.href = 'mailto:info@zenithive.com?subject=Enterprise Plan Enquiry'; }}
+                                onClick={() => { window.location.href = 'mailto:sales@zenithive.com?subject=Enterprise Plan Enquiry'; }}
                                 className="flex-1 bg-[#111] hover:bg-[#333] text-white py-2 px-3 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
                               >
                                 Contact Sales

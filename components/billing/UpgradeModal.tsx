@@ -96,7 +96,7 @@ const UpgradeModal: React.FC<Props> = ({ onClose, currentPlan = 'free' }) => {
               </ul>
               <button
                 onClick={() => plan.cta === 'contact'
-                  ? window.location.href = 'mailto:info@zenithive.com?subject=Enterprise Plan Enquiry'
+                  ? window.location.href = 'mailto:sales@zenithive.com?subject=Enterprise Plan Enquiry'
                   : handleUpgrade(plan.code)
                 }
                 disabled={plan.cta === 'stripe' && (!!loadingPlan || currentPlan === plan.code)}

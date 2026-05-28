@@ -84,7 +84,7 @@ const LimitExceededOverlay: React.FC<Props> = ({ planName = 'Free', onUpgrade })
               </ul>
               <button
                 onClick={() => plan.cta === 'contact'
-                  ? window.location.href = 'mailto:info@zenithive.com?subject=Enterprise Plan Enquiry'
+                  ? window.location.href = 'mailto:sales@zenithive.com?subject=Enterprise Plan Enquiry'
                   : handleUpgrade(plan.code)
                 }
                 disabled={plan.cta === 'stripe' && !!loadingPlan}

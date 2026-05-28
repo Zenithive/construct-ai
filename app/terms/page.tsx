@@ -70,7 +70,7 @@ export default function TermsPage() {
 
           <section>
             <h2 className="text-base font-semibold text[#111] mb-3">9. Contact</h2>
-            <p>For questions about these Terms, contact us at <a href="mailto:info@zenithive.com" className="text-[#1D9E75] hover:text-[#0F6E56] underline">info@zenithive.com</a>.</p>
+            <p>For questions about these Terms, contact us at <a href="mailto:sales@zenithive.com" className="text-[#1D9E75] hover:text-[#0F6E56] underline">sales@zenithive.com</a>.</p>
           </section>
         </div>
 
