@@ -5,7 +5,7 @@ import { X, CreditCard, AlertCircle } from 'lucide-react';
 import type { AdminUser } from '@/services/apiClient';
 
 const PLAN_OPTIONS = [
-  { value: 'free',       label: 'Free',       desc: '20 messages / month' },
+  { value: 'free',       label: 'Free',       desc: '5 messages / month' },
   { value: 'pro',        label: 'Pro',         desc: '1,000 messages / month' },
   { value: 'enterprise', label: 'Enterprise',  desc: 'Unlimited messages' },
 ];
