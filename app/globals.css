@@ -39,6 +39,7 @@ body {
   color: var(--text-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+  max-width: none !important;
 }
 
 /* Chat scroll area — thin neutral thumb (matches SaaS chat UIs) */
