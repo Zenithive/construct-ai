@@ -1,9 +1,7 @@
 /**
  * POST /api/auth/forgot-password
  * Body: { email }
- *
- * Generates a secure reset token, stores it, and emails the reset link.
- * Always returns 200 (even if email not found) to prevent user enumeration.
+ * Sends a password reset link. Always returns 200 to prevent user enumeration.
  */
 import { NextRequest } from 'next/server';
 import crypto from 'crypto';
@@ -27,27 +25,20 @@ export async function POST(req: NextRequest) {
     );
 
     // Always respond with success — never reveal whether the email exists
-    if (!user) {
-      return ok({ message: 'If that email is registered, a reset link has been sent.' });
-    }
+    if (!user) return ok({ message: 'If that email is registered, a reset link has been sent.' });
 
-    // Invalidate any existing unused tokens for this user
-    await query(
-      'UPDATE password_reset_tokens SET used = TRUE WHERE user_id = $1 AND used = FALSE',
-      [user.id]
-    );
+    // Invalidate existing unused tokens
+    await query('UPDATE password_reset_tokens SET used = TRUE WHERE user_id = $1 AND used = FALSE', [user.id]);
 
-    // Generate a cryptographically secure token
-    const token = crypto.randomBytes(32).toString('hex');
+    const token    = crypto.randomBytes(32).toString('hex');
     const expiresAt = new Date(Date.now() + TOKEN_EXPIRY_MS);
 
     await query(
-      `INSERT INTO password_reset_tokens (user_id, token, expires_at)
-       VALUES ($1, $2, $3)`,
+      'INSERT INTO password_reset_tokens (user_id, token, expires_at) VALUES ($1, $2, $3)',
       [user.id, token, expiresAt.toISOString()]
     );
 
-    const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
+    const appUrl   = process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
     const resetUrl = `${appUrl}/reset-password?token=${token}`;
 
     await sendPasswordResetEmail(user.email, resetUrl);

@@ -1,13 +1,14 @@
 'use client';
 
 import { useState, useRef, useEffect, useCallback } from 'react';
-import { Send, Search, ArrowDown, Upload as Paperclip, X, FileText, Loader2, CheckCircle, AlertCircle } from 'lucide-react';
-import { chatApi, uploadApi, AI_BASE_URL, getUserId } from '@/services/apiClient';
+import { Send, Search, ArrowDown, Upload as Paperclip, X, FileText, Loader2, CheckCircle, AlertCircle, Zap, Menu } from 'lucide-react';
+import { chatApi, uploadApi, AI_BASE_URL, getUserId, LimitExceededError, billingApi } from '@/services/apiClient';
 import { renderContent } from '@/utils/parseMessage';
 import { normalizeFeedbackType } from '@/lib/feedback';
 import type { Message, Source } from './ChatWithSidebar';
 import { MessageActions, CopyIconButton } from './chat/MessageActions';
 import { ReferencesSection } from './chat/ReferencesSection';
+import { useBillingUsage } from '@/hooks/useBillingUsage';
 import axios from 'axios';
 
 type ChatComponentProps = {
@@ -45,6 +46,11 @@ const ChatComponent = ({
   const [category, setCategory] = useState(selectedCategory);
   const [isAutoScroll, setIsAutoScroll] = useState(true);
   const [attachedFiles, setAttachedFiles] = useState<AttachedFile[]>([]);
+  const [upgradingPlan, setUpgradingPlan] = useState<string | null>(null);
+
+  // Check billing usage — disable input if limit reached
+  const { usage } = useBillingUsage();
+  const isLimitReached = usage !== null && usage.limit !== null && usage.used >= usage.limit;
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -234,17 +240,60 @@ const ChatComponent = ({
       await chatApi.saveMessage(sessionId, 'user', query, { region: selectedCountry, category });
       onMessageSent();
     } catch (e) {
+      if (e instanceof LimitExceededError) {
+        // Replace the user message with a limit-reached AI bubble
+        const limitMsg: Message = {
+          type: 'ai',
+          content: '__LIMIT_REACHED__',
+          timestamp: new Date(),
+        };
+        onSetMessages(prev => [...prev, limitMsg]);
+        isProcessingRef.current = false;
+        return;
+      }
       console.error('Failed to save user message:', e);
     }
     onRunStream(query, category);
+    // Reset only after stream is kicked off — isLoading will block further sends
     isProcessingRef.current = false;
   };
 
   const showHistory = isLoadingHistory && messages.length === 0;
   const hasUploading = attachedFiles.some(f => f.status === 'uploading');
 
+  // Inject a virtual limit-reached bubble at the end when limit is hit,
+  // so it shows on every page load without being saved to the DB.
+  const displayMessages = (() => {
+    if (!isLimitReached || messages.length === 0) return messages;
+    const last = messages[messages.length - 1];
+    if (last.type === 'ai' && last.content === '__LIMIT_REACHED__') return messages;
+    return [...messages, { type: 'ai' as const, content: '__LIMIT_REACHED__', timestamp: new Date() }];
+  })();
+
   return (
     <div className="flex flex-col h-full min-h-0 overflow-hidden bg-[#fafaf8]">
+
+      {/* ── Mobile top bar — only visible on mobile when sidebar is closed ── */}
+      {!isSidebarOpen && (
+        <div className="md:hidden flex items-center gap-3 px-4 h-12 border-b border-black/[0.09] bg-white flex-shrink-0">
+          <button
+            type="button"
+            onClick={onToggleSidebar}
+            className="p-1.5 text-[#555] hover:text-[#111] hover:bg-[#f0f0ec] rounded-lg transition-colors"
+            aria-label="Open sidebar"
+          >
+            <Menu className="h-5 w-5" />
+          </button>
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-[#1D9E75] rounded-md flex items-center justify-center flex-shrink-0">
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M3 21h18M3 7v14M21 7v14M6 21V11M10 21V11M14 21V11M18 21V11M3 7l9-4 9 4" />
+              </svg>
+            </div>
+            <span className="text-sm font-medium text-[#111]">Construction<span className="text-[#1D9E75]">AI</span></span>
+          </div>
+        </div>
+      )}
 
       {/* ── Messages scroll area ─────────────────────────────────────────── */}
       <div
@@ -284,8 +333,8 @@ const ChatComponent = ({
             </div>
           ) : (
             <div className="flex flex-col gap-4 sm:gap-5">
-              {messages.map((message, index) => {
-                const isThisStreaming = index === messages.length - 1 && isLoading;
+              {displayMessages.map((message, index) => {
+                const isThisStreaming = index === displayMessages.length - 1 && isLoading;
 
                 return (
                   <div key={index}>
@@ -334,6 +383,45 @@ const ChatComponent = ({
                     {/* ── AI response bubble ── */}
                     {message.type === 'ai' && message.content && (
                       <div className="flex justify-start">
+                        {message.content === '__LIMIT_REACHED__' ? (
+                          /* ── Limit reached inline bubble ── */
+                          <div className={`${BUBBLE_MAX} rounded-2xl rounded-bl-md border border-amber-200 bg-amber-50 px-4 py-4 shadow-sm`}>
+                            <div className="flex items-start gap-3 mb-3">
+                              <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                                <Zap className="w-4 h-4 text-amber-500" />
+                              </div>
+                              <div>
+                                <p className="text-sm font-semibold text-[#111] mb-1">Free trial limit reached</p>
+                                <p className="text-sm text-[#555]">
+                                  You've used all your free messages. Subscribe to a plan to continue chatting.
+                                </p>
+                              </div>
+                            </div>
+                            <div className="flex gap-2 ml-11">
+                              <button
+                                onClick={async () => {
+                                  setUpgradingPlan('pro');
+                                  try {
+                                    const { url } = await billingApi.createCheckoutSession('pro');
+                                    if (url) window.location.href = url;
+                                  } catch (e) { console.error(e); }
+                                  finally { setUpgradingPlan(null); }
+                                }}
+                                disabled={!!upgradingPlan}
+                                className="flex-1 bg-[#1D9E75] hover:bg-[#0F6E56] text-white py-2 px-3 rounded-lg text-xs font-medium transition-colors disabled:opacity-50 flex items-center justify-center gap-1.5"
+                              >
+                                {upgradingPlan === 'pro' ? <Loader2 className="w-3 h-3 animate-spin" /> : <Zap className="w-3 h-3" />}
+                                Upgrade to Pro
+                              </button>
+                              <button
+                                onClick={() => { window.location.href = 'mailto:info@zenithive.com?subject=Enterprise Plan Enquiry'; }}
+                                className="flex-1 bg-[#111] hover:bg-[#333] text-white py-2 px-3 rounded-lg text-xs font-medium transition-colors flex items-center justify-center gap-1.5"
+                              >
+                                Contact Sales
+                              </button>
+                            </div>
+                          </div>
+                        ) : (
                         <div className={`${BUBBLE_MAX} rounded-2xl rounded-bl-md border border-black/[0.09] bg-white px-4 py-3 shadow-sm`}>
                           {renderMessageContent(message.content, message.sources)}
 
@@ -365,6 +453,7 @@ const ChatComponent = ({
                             />
                           )}
                         </div>
+                        )}
                       </div>
                     )}
                   </div>
@@ -373,8 +462,8 @@ const ChatComponent = ({
 
               {/* Typing indicator */}
               {isLoading &&
-                messages.length > 0 &&
-                messages[messages.length - 1].type === 'ai' &&
+                displayMessages.length > 0 &&
+                displayMessages[displayMessages.length - 1].type === 'ai' &&
                 streamingSources.db_sources.length === 0 &&
                 streamingSources.web_sources.length === 0 && (
                 <div className="flex justify-start">
@@ -483,9 +572,9 @@ const ChatComponent = ({
                 <button
                   type="button"
                   onClick={() => void handleSendMessage()}
-                  disabled={!inputMessage.trim() || isLoading || hasUploading}
+                  disabled={!inputMessage.trim() || isLoading || hasUploading || isLimitReached}
                   className="flex h-9 w-9 items-center justify-center rounded-lg bg-[#1D9E75] text-white shadow-sm transition-colors hover:bg-[#0F6E56] disabled:cursor-not-allowed disabled:opacity-40"
-                  title={hasUploading ? 'Wait for upload to finish' : undefined}
+                  title={hasUploading ? 'Wait for upload to finish' : isLimitReached ? 'Message limit reached' : undefined}
                 >
                   <Send className="h-4 w-4" />
                 </button>
@@ -493,7 +582,10 @@ const ChatComponent = ({
             </div>
           </div>
           <p className="mt-2 text-center text-xs text-[#999]">
-            ConstructionAI can make mistakes. Verify important information.
+            {isLimitReached
+              ? <span className="text-amber-500 font-medium">Free trial limit reached. Subscribe to continue chatting.</span>
+              : 'ConstructionAI can make mistakes. Verify important information.'
+            }
           </p>
         </div>
       </div>

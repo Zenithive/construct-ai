@@ -1,6 +1,5 @@
 /**
- * GET /api/admin/stats
- * Admin-only. Returns high-level platform metrics for the admin dashboard header.
+ * GET /api/admin/stats — platform-wide metrics (admin only)
  */
 import { NextRequest } from 'next/server';
 import { requireAdmin, AuthError, ForbiddenError } from '@/lib/auth';
@@ -12,39 +11,31 @@ export async function GET(req: NextRequest) {
   try {
     await requireAdmin(req, queryOne);
 
-    const result = await pool.query(`
-      SELECT
-        COUNT(*)::int                                                          AS total_users,
-        COUNT(*) FILTER (WHERE plan_type = 'free')::int                       AS free_users,
-        COUNT(*) FILTER (WHERE plan_type = 'pro')::int                        AS pro_users,
-        COUNT(*) FILTER (WHERE plan_type = 'enterprise')::int                 AS enterprise_users,
-        COUNT(*) FILTER (WHERE subscription_status = 'active')::int           AS active_subscriptions,
-        COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int AS new_users_30d
-      FROM users
-      WHERE role = 'user'
-    `);
+    const [usersRes, chatRes, tokenRes] = await Promise.all([
+      pool.query(`
+        SELECT
+          COUNT(*)::int                                                          AS total_users,
+          COUNT(*) FILTER (WHERE plan_type = 'free')::int                       AS free_users,
+          COUNT(*) FILTER (WHERE plan_type = 'pro')::int                        AS pro_users,
+          COUNT(*) FILTER (WHERE plan_type = 'enterprise')::int                 AS enterprise_users,
+          COUNT(*) FILTER (WHERE subscription_status = 'active')::int           AS active_subscriptions,
+          COUNT(*) FILTER (WHERE created_at >= NOW() - INTERVAL '30 days')::int AS new_users_30d
+        FROM users WHERE role = 'user'
+      `),
+      pool.query(`SELECT COUNT(*)::int AS total_chats FROM chat_sessions`),
+      pool.query(`SELECT COALESCE(SUM(cm.total_tokens), 0)::bigint AS total_tokens FROM chat_sessions cs JOIN chat_messages cm ON cm.session_id = cs.id`),
+    ]);
 
-    const chatResult = await pool.query(`
-      SELECT COUNT(*)::int AS total_chats FROM chat_sessions
-    `);
-
-    const tokenResult = await pool.query(`
-      SELECT COALESCE(SUM(used_tokens), 0)::bigint AS total_tokens FROM usage_tracking
-    `);
-
-    const row   = result.rows[0];
-    const chats = chatResult.rows[0];
-    const tok   = tokenResult.rows[0];
-
+    const row = usersRes.rows[0];
     return ok({
-      totalUsers:           row.total_users,
-      freeUsers:            row.free_users,
-      proUsers:             row.pro_users,
-      enterpriseUsers:      row.enterprise_users,
-      activeSubscriptions:  row.active_subscriptions,
-      newUsers30d:          row.new_users_30d,
-      totalChats:           chats.total_chats,
-      totalTokens:          Number(tok.total_tokens),
+      totalUsers:          row.total_users,
+      freeUsers:           row.free_users,
+      proUsers:            row.pro_users,
+      enterpriseUsers:     row.enterprise_users,
+      activeSubscriptions: row.active_subscriptions,
+      newUsers30d:         row.new_users_30d,
+      totalChats:          chatRes.rows[0].total_chats,
+      totalTokens:         Number(tokenRes.rows[0].total_tokens),
     });
   } catch (e) {
     if (e instanceof AuthError)      return err(e.message, 401);

@@ -18,7 +18,9 @@ export async function POST(req: NextRequest) {
     if (!isValidEmail(email)) return err('Invalid email address.');
 
     const user = await queryOne<UserRow>(
-      'SELECT id, email, password, "firstName", "lastName", is_verified, country, role FROM users WHERE email = $1',
+      `SELECT id, email, password, "firstName", "lastName", is_verified, country,
+              plan_type, subscription_status, role
+       FROM users WHERE email = $1`,
       [email.toLowerCase()]
     );
     if (!user) return err('Invalid email or password.', 401);
@@ -27,7 +29,20 @@ export async function POST(req: NextRequest) {
     if (!match) return err('Invalid email or password.', 401);
 
     const token = signToken({ userId: user.id, email: user.email });
-    return ok({ token, user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, isVerified: user.is_verified, country: user.country, role: user.role } });
+    return ok({
+      token,
+      user: {
+        id:                 user.id,
+        email:              user.email,
+        firstName:          user.firstName,
+        lastName:           user.lastName,
+        isVerified:         user.is_verified,
+        country:            user.country,
+        planType:           user.plan_type,
+        subscriptionStatus: user.subscription_status,
+        role:               user.role,
+      },
+    });
   } catch (e) {
     console.error('[POST /api/auth/login]', e);
     return err('Internal server error.', 500);

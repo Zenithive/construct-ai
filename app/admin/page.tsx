@@ -1,13 +1,8 @@
-/**
- * Route: /admin
- * Protected by middleware (valid JWT required).
- * Role check (admin only) is enforced client-side on mount and server-side on every API call.
- */
 'use client';
 
 import React, { useEffect, useState } from 'react';
 import { ShieldCheck, ShieldX } from 'lucide-react';
-import { getToken, getUser } from '@/services/apiClient';
+import { getToken } from '@/services/apiClient';
 import AdminDashboard from '@/components/admin/AdminDashboard';
 
 type AuthState = 'loading' | 'authorized' | 'forbidden' | 'unauthenticated';
@@ -17,20 +12,14 @@ export default function AdminPage() {
 
   useEffect(() => {
     const token = getToken();
-    if (!token) {
-      setAuthState('unauthenticated');
-      return;
-    }
+    if (!token) { setAuthState('unauthenticated'); return; }
 
-    // Verify role via the stats endpoint — if the server returns 403 the user is not admin.
-    fetch('/api/admin/stats', {
-      headers: { Authorization: `Bearer ${token}` },
-    })
+    fetch('/api/admin/stats', { headers: { Authorization: `Bearer ${token}` } })
       .then(res => {
-        if (res.ok)          setAuthState('authorized');
+        if (res.ok)               setAuthState('authorized');
         else if (res.status === 403) setAuthState('forbidden');
         else if (res.status === 401) setAuthState('unauthenticated');
-        else                 setAuthState('forbidden');
+        else                      setAuthState('forbidden');
       })
       .catch(() => setAuthState('forbidden'));
   }, []);
@@ -62,12 +51,9 @@ export default function AdminPage() {
           </div>
           <h1 className="text-base font-semibold text-[#111] mb-2">Access Denied</h1>
           <p className="text-sm text-[#999] mb-6">
-            Your account does not have admin privileges. Contact a system administrator to request access.
+            Your account does not have admin privileges.
           </p>
-          <a
-            href="/dashboard"
-            className="inline-flex items-center justify-center w-full px-4 py-2.5 bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-sm font-medium rounded-lg transition-colors"
-          >
+          <a href="/dashboard" className="inline-flex items-center justify-center w-full px-4 py-2.5 bg-[#1D9E75] hover:bg-[#0F6E56] text-white text-sm font-medium rounded-lg transition-colors">
             Back to Dashboard
           </a>
         </div>

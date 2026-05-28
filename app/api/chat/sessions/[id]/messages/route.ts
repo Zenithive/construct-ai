@@ -2,11 +2,12 @@
  * GET  /api/chat/sessions/[id]/messages  — fetch all messages in a session
  * POST /api/chat/sessions/[id]/messages  — save a new message
  */
-import { NextRequest } from 'next/server';
+import { NextRequest, NextResponse } from 'next/server';
 import { v4 as uuidv4 } from 'uuid';
 import { requireAuth } from '@/lib/auth';
 import { query, queryOne } from '@/lib/db';
 import { ok, err } from '@/lib/helpers';
+import { checkCanSend, incrementUsage } from '@/lib/billing';
 import type { ChatMessageRow, ChatSessionRow } from '@/types';
 
 async function assertSessionOwner(sessionId: string, userId: string): Promise<ChatSessionRow | null> {
@@ -52,16 +53,28 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
     if (!session) return err('Session not found.', 404);
 
     const body = await req.json();
-    const { message_type, content, citations, confidence, region, category, sources } = body ?? {};
+    const { message_type, content, citations, confidence, region, category, sources,
+            prompt_tokens, completion_tokens, total_tokens, latency } = body ?? {};
 
     if (!message_type || !content) return err('message_type and content are required.');
     if (!['user', 'ai'].includes(message_type)) return err('message_type must be "user" or "ai".');
 
-    // Deduplication: skip if identical message was saved in the last 10 seconds
+    // Enforce message limit only on user messages (not AI responses)
+    if (message_type === 'user') {
+      const canSend = await checkCanSend(authUser.userId);
+      if (!canSend.allowed) {
+        return NextResponse.json(
+          { error: `Message limit reached. You have used ${canSend.used} of ${canSend.limit} messages on the ${canSend.planCode} plan. Please upgrade to continue.`, code: 'LIMIT_EXCEEDED' },
+          { status: 403 }
+        );
+      }
+    }
+
+    // Deduplication: skip if identical message was saved in the last 60 seconds
     const recent = await queryOne<{ id: string }>(
       `SELECT id FROM chat_messages
        WHERE session_id = $1 AND user_id = $2 AND message_type = $3 AND content = $4
-         AND created_at > NOW() - INTERVAL '10 seconds'
+         AND created_at > NOW() - INTERVAL '60 seconds'
        LIMIT 1`,
       [params.id, authUser.userId, message_type, content]
     );
@@ -71,12 +84,21 @@ export async function POST(req: NextRequest, { params }: { params: { id: string 
 
     const messageId = uuidv4();
     await query(
-      `INSERT INTO chat_messages (id, session_id, user_id, message_type, content, citations, confidence, region, category, sources, created_at)
-       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, NOW())`,
-      [messageId, params.id, authUser.userId, message_type, content, citations ? JSON.stringify(citations) : null, confidence ?? null, region ?? null, category ?? null, sources ? JSON.stringify(sources) : null]
+      `INSERT INTO chat_messages (id, session_id, user_id, message_type, content, citations, confidence, region, category, sources, prompt_tokens, completion_tokens, total_tokens, latency, created_at)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, NOW())`,
+      [messageId, params.id, authUser.userId, message_type, content,
+       citations ? JSON.stringify(citations) : null,
+       confidence ?? null, region ?? null, category ?? null,
+       sources ? JSON.stringify(sources) : null,
+       prompt_tokens ?? null, completion_tokens ?? null, total_tokens ?? null, latency ?? null]
     );
     // Bump session updated_at
     await query('UPDATE chat_sessions SET updated_at = NOW() WHERE id = $1', [params.id]);
+
+    // Increment usage counter for user messages
+    if (message_type === 'user') {
+      await incrementUsage(authUser.userId);
+    }
 
     // Auto-title from first user message
     if (message_type === 'user') {

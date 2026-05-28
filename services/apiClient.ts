@@ -47,6 +47,28 @@ export const isAuthenticated = (): boolean => !!getToken();
 
 // ── Base fetch ────────────────────────────────────────────────────────────────
 
+// ── Base fetch ────────────────────────────────────────────────────────────────
+
+export class ApiError extends Error {
+  code?: string;
+  status: number;
+  extra?: Record<string, unknown>;
+  constructor(message: string, status: number, code?: string, extra?: Record<string, unknown>) {
+    super(message);
+    this.name   = 'ApiError';
+    this.status = status;
+    this.code   = code;
+    this.extra  = extra;
+  }
+}
+
+export class LimitExceededError extends ApiError {
+  constructor(message: string, extra?: Record<string, unknown>) {
+    super(message, 403, 'LIMIT_EXCEEDED', extra);
+    this.name = 'LimitExceededError';
+  }
+}
+
 async function request<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
@@ -55,9 +77,15 @@ async function request<T = unknown>(path: string, options: RequestInit = {}): Pr
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(path, { ...options, headers });
-  const data = await res.json();
-  if (!res.ok) throw new Error((data as { error?: string }).error || 'Something went wrong.');
+  const res  = await fetch(path, { ...options, headers });
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    const payload = data as { error?: string; code?: string };
+    if (res.status === 403 && payload.code === 'LIMIT_EXCEEDED') {
+      throw new LimitExceededError(payload.error || 'Message limit reached.', data as Record<string, unknown>);
+    }
+    throw new ApiError(payload.error || 'Something went wrong.', res.status, payload.code, data as Record<string, unknown>);
+  }
   return data as T;
 }
 
@@ -102,6 +130,30 @@ export const chatApi = {
       method: 'POST',
       body: JSON.stringify({ session_id: sessionId, feedback_type, feedback_reason: feedback_reason ?? '' }),
     }),
+
+  sendMessage: async (
+    sessionId: string,
+    body: { query: string; content: string; country_code: string; region?: string; category?: string },
+    signal?: AbortSignal
+  ): Promise<Response> => {
+    const token = getToken();
+    const headers: Record<string, string> = { 'Content-Type': 'application/json' };
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`/api/chat/sessions/${sessionId}/send`, {
+      method: 'POST', headers, body: JSON.stringify(body), signal,
+    });
+    if (res.status === 403) {
+      const data = await res.json().catch(() => ({}));
+      if ((data as { code?: string }).code === 'LIMIT_EXCEEDED') {
+        throw new LimitExceededError((data as { error?: string }).error || 'Message limit reached.', data as Record<string, unknown>);
+      }
+    }
+    if (!res.ok) {
+      const data = await res.json().catch(() => ({}));
+      throw new ApiError((data as { error?: string }).error || 'Failed to send message.', res.status, (data as { code?: string }).code, data as Record<string, unknown>);
+    }
+    return res;
+  },
 };
 
 // ── Users API ─────────────────────────────────────────────────────────────────
@@ -113,64 +165,53 @@ export const usersApi = {
     request('/api/users', { method: 'PATCH', body: JSON.stringify({ firstName, lastName }) }),
 };
 
+// ── Billing API ───────────────────────────────────────────────────────────────
+
+export type BillingPlanSummary = { code: string; name: string; messageLimit: number | null };
+export type BillingUsageResponse = {
+  used: number; limit: number | null; remaining: number | null;
+  plan: BillingPlanSummary; periodStart: string; periodEnd: string; subscriptionStatus: string;
+};
+export type BillingPlanListing = {
+  code: string; name: string; priceMonthly: number | null; messageLimit: number | null; features: Record<string, unknown> | null;
+};
+
+export const billingApi = {
+  getUsage: () => request<BillingUsageResponse>('/api/billing/usage'),
+  getPlans: () => request<{ plans: BillingPlanListing[] }>('/api/billing/plans'),
+  createCheckoutSession: (planCode: string) =>
+    request<{ url: string; sessionId: string }>('/api/billing/create-checkout-session', {
+      method: 'POST', body: JSON.stringify({ planCode }),
+    }),
+  confirmCheckout: (sessionId: string) =>
+    request<{ plan: BillingPlanSummary; subscriptionStatus: string; used: number; limit: number | null; remaining: number | null }>(
+      '/api/billing/confirm-checkout', { method: 'POST', body: JSON.stringify({ sessionId }) }
+    ),
+};
+
 // ── Admin API ─────────────────────────────────────────────────────────────────
 
 export type AdminUser = {
-  id: string;
-  email: string;
-  firstName: string;
-  lastName: string;
-  isVerified: boolean;
-  country: string;
-  planType: string;
-  subscriptionStatus: string;
-  stripeCustomerId: string | null;
-  periodStart: string | null;
-  periodEnd: string | null;
-  createdAt: string;
-  role: string;
-  chatCount: number;
-  totalTokens: number;
-  totalMessages: number;
+  id: string; email: string; firstName: string; lastName: string;
+  isVerified: boolean; country: string; planType: string; subscriptionStatus: string;
+  stripeCustomerId: string | null; periodStart: string | null; periodEnd: string | null;
+  createdAt: string; role: string; chatCount: number; totalTokens: number; totalMessages: number;
 };
-
 export type AdminUsersResponse = {
   users: AdminUser[];
-  pagination: {
-    total: number;
-    page: number;
-    limit: number;
-    totalPages: number;
-  };
+  pagination: { total: number; page: number; limit: number; totalPages: number };
 };
-
 export type AdminStatsResponse = {
-  totalUsers: number;
-  freeUsers: number;
-  proUsers: number;
-  enterpriseUsers: number;
-  activeSubscriptions: number;
-  newUsers30d: number;
-  totalChats: number;
-  totalTokens: number;
+  totalUsers: number; freeUsers: number; proUsers: number; enterpriseUsers: number;
+  activeSubscriptions: number; newUsers30d: number; totalChats: number; totalTokens: number;
 };
-
 export type AdminUserFilters = {
-  page?: number;
-  limit?: number;
-  search?: string;
-  plan?: string;
-  status?: string;
-  dateFrom?: string;
-  dateTo?: string;
-  sortBy?: string;
-  sortDir?: 'asc' | 'desc';
+  page?: number; limit?: number; search?: string; plan?: string; status?: string;
+  dateFrom?: string; dateTo?: string; sortBy?: string; sortDir?: 'asc' | 'desc';
 };
 
 export const adminApi = {
-  getStats: () =>
-    request<AdminStatsResponse>('/api/admin/stats'),
-
+  getStats: () => request<AdminStatsResponse>('/api/admin/stats'),
   getUsers: (filters: AdminUserFilters = {}) => {
     const sp = new URLSearchParams();
     if (filters.page)     sp.set('page',     String(filters.page));
@@ -184,16 +225,10 @@ export const adminApi = {
     if (filters.sortDir)  sp.set('sortDir',  filters.sortDir);
     return request<AdminUsersResponse>(`/api/admin/users?${sp.toString()}`);
   },
-
-  updateSubscription: (
-    userId: string,
-    planType: string,
-    subscriptionStatus: string
-  ) =>
-    request<{ message: string; user: AdminUser }>(
-      `/api/admin/users/${userId}/subscription`,
-      { method: 'PATCH', body: JSON.stringify({ planType, subscriptionStatus }) }
-    ),
+  updateSubscription: (userId: string, planType: string, subscriptionStatus: string) =>
+    request<{ message: string; user: AdminUser }>(`/api/admin/users/${userId}/subscription`, {
+      method: 'PATCH', body: JSON.stringify({ planType, subscriptionStatus }),
+    }),
 };
 
 // ── Upload API ────────────────────────────────────────────────────────────────
