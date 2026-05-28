@@ -4,6 +4,7 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { ArrowLeft, MessageSquare, ChevronRight, User, Bot, Clock, ShieldCheck, LogOut, AlertCircle, Zap } from 'lucide-react';
 import { getToken, removeToken, removeUser } from '@/services/apiClient';
+import { renderContent } from '@/utils/parseMessage';
 
 interface UserInfo { id: string; firstName: string; lastName: string; email: string; planType: string; chatCount: number; totalTokens: number; }
 interface ChatSession { id: string; title: string; created_at: string; updated_at: string; message_count: number; session_tokens: number; }
@@ -15,6 +16,14 @@ function fmtTokens(n: number) { return n >= 1000 ? `${(n / 1000).toFixed(1)}k` :
 function planBadge(plan: string) {
   const map: Record<string, string> = { free: 'bg-[#f0f0ec] text-[#555]', pro: 'bg-[#E1F5EE] text-[#0F6E56]', enterprise: 'bg-[#111] text-white' };
   return map[plan] ?? 'bg-[#f0f0ec] text-[#555]';
+}
+
+function dedupeMessages(msgs: ChatMessage[]): ChatMessage[] {
+  return msgs.filter((msg, i) => {
+    if (i === 0) return true;
+    const prev = msgs[i - 1];
+    return !(msg.message_type === prev.message_type && msg.content === prev.content);
+  });
 }
 
 export default function UserChatsPage() {
@@ -69,7 +78,7 @@ export default function UserChatsPage() {
       const res   = await fetch(`/api/admin/users/${userId}/chats/${session.id}/messages`, { headers: { Authorization: `Bearer ${token}` } });
       const data  = await res.json();
       if (!res.ok) throw new Error(data.error || 'Failed to load messages.');
-      setMessages(data.messages);
+      setMessages(dedupeMessages(data.messages));
       setSessionTokens(data.sessionTokens ?? 0);
     } catch (e: unknown) {
       setError(e instanceof Error ? e.message : 'Failed to load messages.');
@@ -94,7 +103,6 @@ export default function UserChatsPage() {
             </div>
           </div>
           <div className="flex items-center gap-3">
-            {/* Total tokens badge for this user across all sessions */}
             <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#f0f0ec] border border-black/[0.09]">
               <Zap className="w-3.5 h-3.5 text-[#1D9E75]" />
               <span className="text-xs text-[#555]">Total tokens:</span>
@@ -118,9 +126,7 @@ export default function UserChatsPage() {
         <div className="w-80 flex-shrink-0 flex flex-col bg-white border border-black/[0.09] rounded-xl overflow-hidden">
           <div className="px-4 py-3.5 border-b border-black/[0.09] flex-shrink-0">
             <p className="text-sm font-semibold text-[#111]">Conversations</p>
-            {user && (
-              <p className="text-xs text-[#999] mt-0.5">{user.email} · {sessions.length} chat{sessions.length !== 1 ? 's' : ''}</p>
-            )}
+            {user && <p className="text-xs text-[#999] mt-0.5">{user.email} · {sessions.length} chat{sessions.length !== 1 ? 's' : ''}</p>}
           </div>
           <div className="flex-1 overflow-y-auto">
             {loadingSessions ? (
@@ -175,45 +181,71 @@ export default function UserChatsPage() {
               <div className="px-6 py-4 border-b border-black/[0.09] flex-shrink-0 flex items-start justify-between gap-4">
                 <div>
                   <p className="text-sm font-semibold text-[#111]">{selectedSession.title}</p>
-                  <p className="text-xs text-[#999] mt-0.5">{selectedSession.message_count} messages · {fmtDate(selectedSession.created_at)}</p>
+                  <p className="text-xs text-[#999] mt-0.5">{messages.length} messages · {fmtDate(selectedSession.created_at)}</p>
                 </div>
-                {/* Per-session token count badge */}
                 <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-[#E1F5EE] border border-[#5DCAA5]/30 flex-shrink-0">
                   <Zap className="w-3 h-3 text-[#1D9E75]" />
                   <span className="text-[11px] text-[#0F6E56] font-medium">{fmtTokens(sessionTokens)} tokens</span>
                 </div>
               </div>
+
               <div className="flex-1 overflow-y-auto px-6 py-5 space-y-4">
                 {loadingMessages ? (
-                  <div className="space-y-4">{Array.from({ length: 5 }).map((_, i) => <div key={i} className={`flex ${i % 2 === 0 ? 'justify-end' : 'justify-start'}`}><div className="h-14 bg-[#f0f0ec] rounded-2xl animate-pulse" style={{ width: `${40 + Math.random() * 35}%` }} /></div>)}</div>
+                  <div className="space-y-4">{Array.from({ length: 5 }).map((_, i) => (
+                    <div key={i} className={`flex ${i % 2 === 0 ? 'justify-end' : 'justify-start'}`}>
+                      <div className="h-14 bg-[#f0f0ec] rounded-2xl animate-pulse" style={{ width: `${40 + (i * 7) % 35}%` }} />
+                    </div>
+                  ))}</div>
                 ) : messages.length === 0 ? (
                   <div className="flex items-center justify-center h-full"><p className="text-sm text-[#999]">No messages in this session.</p></div>
                 ) : (
                   messages.map(msg => (
                     <div key={msg.id} className={`flex gap-3 ${msg.message_type === 'user' ? 'justify-end' : 'justify-start'}`}>
                       {msg.message_type === 'ai' && (
-                        <div className="w-8 h-8 rounded-full bg-[#1D9E75] flex items-center justify-center flex-shrink-0 mt-1"><Bot className="w-4 h-4 text-white" /></div>
+                        <div className="w-8 h-8 rounded-full bg-[#1D9E75] flex items-center justify-center flex-shrink-0 mt-1">
+                          <Bot className="w-4 h-4 text-white" />
+                        </div>
                       )}
                       <div className={`max-w-[70%] flex flex-col gap-1 ${msg.message_type === 'user' ? 'items-end' : 'items-start'}`}>
-                        <div className={`px-4 py-3 rounded-2xl text-sm leading-relaxed whitespace-pre-wrap break-words ${msg.message_type === 'user' ? 'bg-[#E1F5EE] text-[#111] border border-[#5DCAA5]/30 rounded-br-sm' : 'bg-[#f7f7f5] text-[#111] border border-black/[0.06] rounded-bl-sm'}`}>
-                          {msg.content}
-                        </div>
+                        {msg.message_type === 'user' ? (
+                          <div className="px-4 py-3 rounded-2xl rounded-br-sm text-sm leading-relaxed break-words bg-[#E1F5EE] text-[#111] border border-[#5DCAA5]/30">
+                            {msg.content}
+                          </div>
+                        ) : (
+                          <div className="px-4 py-3 rounded-2xl rounded-bl-sm border border-black/[0.06] bg-[#f7f7f5] shadow-sm">
+                            <div
+                              className="text-sm max-w-none leading-relaxed break-words text-gray-800
+                                [&_p]:mb-3 [&_p:last-child]:mb-0
+                                [&_h1]:text-xl [&_h1]:font-semibold [&_h1]:text-gray-900 [&_h1]:mt-4 [&_h1]:mb-2
+                                [&_h2]:text-lg [&_h2]:font-semibold [&_h2]:text-gray-900 [&_h2]:mt-4 [&_h2]:mb-2 [&_h2]:border-b [&_h2]:border-gray-200 [&_h2]:pb-1
+                                [&_h3]:text-base [&_h3]:font-semibold [&_h3]:text-gray-900 [&_h3]:mt-3 [&_h3]:mb-1
+                                [&_ul]:my-2 [&_ol]:my-2 [&_li]:text-sm
+                                [&_strong]:font-semibold [&_strong]:text-gray-900
+                                [&_code]:text-xs [&_pre]:text-xs"
+                              dangerouslySetInnerHTML={{ __html: renderContent(msg.content) }}
+                            />
+                          </div>
+                        )}
                         <div className={`flex items-center gap-2 px-1 ${msg.message_type === 'user' ? 'flex-row-reverse' : 'flex-row'}`}>
                           <span className="text-[11px] text-[#bbb]">{fmtDateTime(msg.created_at)}</span>
                           {msg.total_tokens > 0 && (
-                            <span className="text-[11px] text-[#1D9E75] flex items-center gap-0.5" title={msg.message_type === 'ai' ? `Prompt: ${msg.prompt_tokens} · Completion: ${msg.completion_tokens}` : undefined}>
+                            <span className="text-[11px] text-[#1D9E75] flex items-center gap-0.5"
+                              title={msg.message_type === 'ai' ? `Prompt: ${msg.prompt_tokens} · Completion: ${msg.completion_tokens}` : undefined}>
                               <Zap className="w-2.5 h-2.5" />{msg.total_tokens}
                             </span>
                           )}
                         </div>
                       </div>
                       {msg.message_type === 'user' && (
-                        <div className="w-8 h-8 rounded-full bg-[#E1F5EE] flex items-center justify-center flex-shrink-0 mt-1"><User className="w-4 h-4 text-[#0F6E56]" /></div>
+                        <div className="w-8 h-8 rounded-full bg-[#E1F5EE] flex items-center justify-center flex-shrink-0 mt-1">
+                          <User className="w-4 h-4 text-[#0F6E56]" />
+                        </div>
                       )}
                     </div>
                   ))
                 )}
               </div>
+
               {!loadingMessages && messages.length > 0 && (
                 <div className="flex-shrink-0 px-6 py-3 border-t border-black/[0.09] bg-[#f7f7f5] flex items-center justify-between">
                   <p className="text-xs text-[#999]">{messages.length} message{messages.length !== 1 ? 's' : ''} · Read-only view</p>
