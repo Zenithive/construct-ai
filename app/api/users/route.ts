@@ -1,10 +1,6 @@
 /**
- * GET /api/users
- * Returns the authenticated user's profile.
- *
- * PATCH /api/users
- * Body: { firstName?, lastName? }
- * Updates the authenticated user's profile.
+ * GET  /api/users  — returns the authenticated user's profile
+ * PATCH /api/users — updates firstName / lastName
  */
 import { NextRequest } from 'next/server';
 import { requireAuth } from '@/lib/auth';
@@ -16,11 +12,26 @@ export async function GET(req: NextRequest) {
   try {
     const authUser = requireAuth(req);
     const user = await queryOne<UserRow>(
-      'SELECT id, email, "firstName", "lastName", is_verified, country, created_at FROM users WHERE id = $1',
+      `SELECT id, email, "firstName", "lastName", is_verified, country,
+              plan_type, subscription_status, role, created_at
+       FROM users WHERE id = $1`,
       [authUser.userId]
     );
     if (!user) return err('User not found.', 404);
-    return ok({ user: { id: user.id, email: user.email, firstName: user.firstName, lastName: user.lastName, isVerified: user.is_verified, country: user.country, createdAt: user.created_at } });
+    return ok({
+      user: {
+        id:                 user.id,
+        email:              user.email,
+        firstName:          user.firstName,
+        lastName:           user.lastName,
+        isVerified:         user.is_verified,
+        country:            user.country,
+        planType:           user.plan_type,
+        subscriptionStatus: user.subscription_status,
+        role:               user.role,
+        createdAt:          user.created_at,
+      },
+    });
   } catch (e) {
     console.error('[GET /api/users]', e);
     return err('Internal server error.', 500);
@@ -40,7 +51,7 @@ export async function PATCH(req: NextRequest) {
     let idx = 1;
 
     if (firstName) { updates.push(`"firstName" = $${idx++}`); values.push(firstName.trim()); }
-    if (lastName)  { updates.push(`"lastName" = $${idx++}`);  values.push(lastName.trim()); }
+    if (lastName)  { updates.push(`"lastName"  = $${idx++}`); values.push(lastName.trim()); }
     values.push(authUser.userId);
 
     await query(`UPDATE users SET ${updates.join(', ')} WHERE id = $${idx}`, values);

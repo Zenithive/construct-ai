@@ -24,6 +24,7 @@ export type SessionStreamState = { messages: Message[]; isLoading: boolean; stre
 const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories }: any) => {
   const [currentSessionId, setCurrentSessionId] = useState<string | null>(null);
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
+  const [usageRefreshKey, setUsageRefreshKey] = useState(0);
   const [selectedCountryCode, setSelectedCountryCode] = useState<string>(() => {
     const user = getUser();
     return COUNTRY_LABEL_TO_CODE[(user?.country as string) ?? ''] ?? DEFAULT_COUNTRY_CODE;
@@ -202,13 +203,13 @@ const ChatWithSidebar = ({ selectedRegion, selectedCategory, regions, categories
 
   return (
     <div className="flex h-full overflow-hidden bg-[#fafaf8]">
-      <ChatSidebar ref={sidebarRef} currentSessionId={currentSessionId} onNewChat={createNewSession} onSelectSession={setCurrentSessionId} onDeleteSession={handleDeleteSession} isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} onCountryChange={(code, label) => { setSelectedCountryCode(code); setSelectedCountryLabel(label); }} />
+      <ChatSidebar ref={sidebarRef} currentSessionId={currentSessionId} onNewChat={createNewSession} onSelectSession={setCurrentSessionId} onDeleteSession={handleDeleteSession} isOpen={isSidebarOpen} onToggle={() => setIsSidebarOpen(!isSidebarOpen)} onCountryChange={(code, label) => { setSelectedCountryCode(code); setSelectedCountryLabel(label); }} usageRefreshKey={usageRefreshKey} />
       <div className="flex-1 flex flex-col overflow-hidden h-full">
         {currentSessionId ? (
           <ChatComponent key={currentSessionId} selectedCountry={selectedCountryLabel} selectedCategory={selectedCategory} regions={regions} categories={categories} sessionId={currentSessionId} messages={currentState!.messages} isLoading={currentState!.isLoading} streamingSources={currentState!.streamingSources}
             onSetMessages={(updater: any) => patchSessionState(currentSessionId, prev => ({ messages: typeof updater === 'function' ? updater(prev.messages) : updater }))}
             onRunStream={(q: string, c: string) => runStream(currentSessionId, q, selectedCountryLabel, c)}
-            onMessageSent={() => sidebarRef.current?.refreshSessions?.()}
+            onMessageSent={() => { sidebarRef.current?.refreshSessions?.(); setUsageRefreshKey(k => k + 1); }}
             onToggleSidebar={() => setIsSidebarOpen(!isSidebarOpen)} isSidebarOpen={isSidebarOpen} />
         ) : (
           <div className="flex items-center justify-center h-full">

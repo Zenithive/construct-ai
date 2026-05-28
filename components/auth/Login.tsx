@@ -34,7 +34,7 @@ const Login = () => {
     <div className="min-h-screen bg-[#fafaf8] flex flex-col items-center justify-center p-4">
       <div className="w-full max-w-md">
         {/* Logo */}
-        <div className="flex items-center justify-center gap-2.5 mb-8">
+        <a href="https://constructionai.chat" target="_blank" rel="noopener noreferrer" className="flex items-center justify-center gap-2.5 mb-8 hover:opacity-80 transition-opacity">
           <div className="w-8 h-8 bg-[#1D9E75] rounded-lg flex items-center justify-center flex-shrink-0">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <path d="M3 21h18M3 7v14M21 7v14M6 21V11M10 21V11M14 21V11M18 21V11M3 7l9-4 9 4" />
@@ -43,7 +43,7 @@ const Login = () => {
           <span className="text-[15px] font-medium text-[#111]">
             Construction<span className="text-[#1D9E75]">AI</span><span className="text-[#999]">.chat</span>
           </span>
-        </div>
+        </a>
 
         <div className="bg-white border border-black/[0.09] rounded-xl p-8 shadow-sm">
           <div className="mb-7">
@@ -57,7 +57,10 @@ const Login = () => {
             </div>
           )}
           <AuthForm email={email} setEmail={setEmail} password={password} setPassword={setPassword} onSubmit={handleLogin} buttonText="Sign in" showCaptcha={false} isLoading={isLoading} />
-          <div className="mt-6 pt-5 border-t border-black/[0.07]">
+          <div className="mt-3 flex justify-end">
+            <Link href="/forgot-password" className="text-xs text-[#999] hover:text-[#1D9E75] transition-colors">Forgot password?</Link>
+          </div>
+          <div className="mt-5 pt-5 border-t border-black/[0.07]">
             <p className="text-center text-sm text-[#555]">
               Don&apos;t have an account?{' '}
               <Link href="/register" className="font-medium text-[#1D9E75] hover:text-[#0F6E56] transition-colors">Sign up for free</Link>
@@ -66,8 +69,8 @@ const Login = () => {
         </div>
         <p className="text-center text-xs text-[#999] mt-5">
           By signing in, you agree to our{' '}
-          <a href="#" className="text-[#1D9E75] hover:text-[#0F6E56] underline">Terms</a>{' '}and{' '}
-          <a href="#" className="text-[#1D9E75] hover:text-[#0F6E56] underline">Privacy Policy</a>
+          <Link href="/terms" className="text-[#1D9E75] hover:text-[#0F6E56] underline">Terms</Link>{' '}and{' '}
+          <Link href="/privacy" className="text-[#1D9E75] hover:text-[#0F6E56] underline">Privacy Policy</Link>
         </p>
       </div>
     </div>

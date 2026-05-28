@@ -46,6 +46,29 @@ export function requireAuth(req: NextRequest): JWTPayload {
   return user;
 }
 
+// ── Admin guard ───────────────────────────────────────────────────────────────
+
+export class ForbiddenError extends Error {
+  status = 403;
+  constructor(message = 'Forbidden. Admin access required.') {
+    super(message);
+    this.name = 'ForbiddenError';
+  }
+}
+
+export async function requireAdmin(
+  req: NextRequest,
+  queryOneFn: <T>(sql: string, params?: unknown[]) => Promise<T | null>
+): Promise<JWTPayload> {
+  const authUser = requireAuth(req);
+  const row = await queryOneFn<{ role: string }>(
+    'SELECT role FROM users WHERE id = $1',
+    [authUser.userId]
+  );
+  if (!row || row.role !== 'admin') throw new ForbiddenError();
+  return authUser;
+}
+
 // ── Password ──────────────────────────────────────────────────────────────────
 
 export async function hashPassword(password: string): Promise<string> {

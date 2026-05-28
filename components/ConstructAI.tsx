@@ -18,6 +18,9 @@ const ConstructAI = () => {
   useEffect(() => {
     const user = getUser();
     setRole((user?.email as string) === 'rajvikamani2211@gmail.com' ? 'admin' : 'user');
+    // Lock body scroll for the dashboard layout
+    document.body.classList.add('dashboard-layout');
+    return () => { document.body.classList.remove('dashboard-layout'); };
   }, []);
 
   if (!role) return (

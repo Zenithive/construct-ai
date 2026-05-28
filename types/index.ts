@@ -54,6 +54,10 @@ export interface ChatMessageRow {
   sources: Source[] | null;
   feedback_type: string | null;
   feedback_reason: string | null;
+  prompt_tokens: number | null;
+  completion_tokens: number | null;
+  total_tokens: number | null;
+  latency: number | null;
   created_at: string;
 }
 
@@ -88,4 +92,52 @@ export interface Message {
   id?: string;
   feedback_type?: 'Like' | 'Dislike' | null;
   feedback_reason?: string | null;
+}
+
+// ── Billing ───────────────────────────────────────────────────────────────────
+
+export interface SubscriptionPlanRow {
+  id: string;
+  name: string;
+  code: PlanCode;
+  price_monthly: string | null;
+  message_limit: number | null;
+  features: Record<string, unknown> | null;
+  created_at: string;
+}
+
+export interface UsageTrackingRow {
+  id: string;
+  user_id: string;
+  used_messages: number;
+  used_tokens: number;
+  period_start: string;
+  period_end: string;
+  created_at: string;
+}
+
+export interface SubscriptionRow {
+  id: string;
+  user_id: string;
+  plan_code: string;
+  provider: string;
+  provider_subscription_id: string | null;
+  status: string | null;
+  amount: string | null;
+  currency: string;
+  started_at: string | null;
+  expires_at: string | null;
+  created_at: string;
+}
+
+export interface PaymentRow {
+  id: string;
+  user_id: string;
+  subscription_id: string | null;
+  provider_payment_id: string | null;
+  amount: string | null;
+  currency: string;
+  status: string | null;
+  payment_method: string | null;
+  created_at: string;
 }

@@ -39,3 +39,56 @@ export async function sendOTPEmail(to: string, otp: string): Promise<void> {
     `,
   });
 }
+
+export async function sendPasswordResetEmail(to: string, resetUrl: string): Promise<void> {
+  const logoPath = process.env.NODE_ENV === 'production'
+    ? `${process.env.NEXT_PUBLIC_APP_URL}/logo192.png`
+    : null;
+
+  const imgTag = logoPath
+    ? `<img src="${logoPath}" width="32" height="32" alt="ConstructionAI" style="display:block;border-radius:7px;" />`
+    : `<img src="cid:logo@constructionai" width="32" height="32" alt="ConstructionAI" style="display:block;border-radius:7px;" />`;
+
+  const mailOptions: nodemailer.SendMailOptions = {
+    from: process.env.EMAIL_FROM || `ConstructionAI <${process.env.EMAIL_USER}>`,
+    to,
+    subject: 'Reset your ConstructionAI password',
+    html: `
+      <div style="font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;max-width:480px;margin:0 auto;padding:32px;">
+        <div style="margin-bottom:28px;">
+          <table cellpadding="0" cellspacing="0" border="0">
+            <tr>
+              <td style="vertical-align:middle;">${imgTag}</td>
+              <td style="vertical-align:middle;padding-left:9px;">
+                <span style="font-size:15px;font-weight:500;color:#111;">Construction</span><span style="font-size:15px;font-weight:500;color:#1D9E75;">AI</span><span style="font-size:15px;color:#999;">.chat</span>
+              </td>
+            </tr>
+          </table>
+        </div>
+        <h2 style="color:#111;font-size:22px;font-weight:600;margin:0 0 8px;">Reset your password</h2>
+        <p style="color:#555;font-size:14px;margin:0 0 24px;line-height:1.6;">
+          We received a request to reset the password for your account. Click the button below to choose a new password. This link expires in <strong>1 hour</strong>.
+        </p>
+        <table cellpadding="0" cellspacing="0" border="0" style="margin-bottom:28px;">
+          <tr>
+            <td style="border-radius:8px;background:#1D9E75;">
+              <a href="${resetUrl}" style="display:inline-block;background:#1D9E75;color:#ffffff;text-decoration:none;padding:13px 28px;border-radius:8px;font-size:14px;font-weight:600;">Reset Password</a>
+            </td>
+          </tr>
+        </table>
+        <p style="color:#999;font-size:12px;margin:0 0 8px;line-height:1.6;">If you didn't request a password reset, you can safely ignore this email.</p>
+        <p style="color:#bbb;font-size:11px;margin:0;line-height:1.6;">Or copy this link: <a href="${resetUrl}" style="color:#1D9E75;word-break:break-all;">${resetUrl}</a></p>
+        <hr style="border:none;border-top:1px solid #f0f0ec;margin:28px 0 16px;" />
+        <p style="color:#ccc;font-size:11px;margin:0;">&copy; ${new Date().getFullYear()} ConstructionAI.chat</p>
+      </div>
+    `,
+  };
+
+  if (!logoPath) {
+    const pathModule = await import('path');
+    const logoFilePath = pathModule.join(process.cwd(), 'public', 'logo192.png');
+    mailOptions.attachments = [{ filename: 'logo.png', path: logoFilePath, cid: 'logo@constructionai' }];
+  }
+
+  await mailer.sendMail(mailOptions);
+}

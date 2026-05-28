@@ -27,7 +27,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en" className={`${dmSans.variable} ${dmMono.variable}`}>
-      <body className={`h-full overflow-hidden ${dmSans.className}`}>{children}</body>
+      <body className={`h-full ${dmSans.className}`}>{children}</body>
     </html>
   );
 }
