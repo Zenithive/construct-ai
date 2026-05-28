@@ -55,8 +55,27 @@ export const parseMarkdown = (text: string, sources: any[] = []): string => {
   return result;
 };
 
+/**
+ * Strips dangerous HTML tags from AI-generated content before rendering.
+ * Removes <style>, <script>, <html>, <head>, <body> tags (and their contents)
+ * to prevent AI-generated CSS/JS from leaking into the host page.
+ */
+export const sanitizeAIHtml = (content: string): string => {
+  // Remove <style>...</style> blocks entirely (these cause CSS leakage into body)
+  content = content.replace(/<style[\s\S]*?<\/style>/gi, '');
+  // Remove <script>...</script> blocks entirely
+  content = content.replace(/<script[\s\S]*?<\/script>/gi, '');
+  // Strip <html>, <head>, <body> wrapper tags but keep their inner content
+  content = content.replace(/<\/?(html|head|body)[^>]*>/gi, '');
+  // Remove <meta>, <link>, <title> tags (head-only elements)
+  content = content.replace(/<(meta|link|title)[^>]*\/?>/gi, '');
+  return content;
+};
+
 export const renderContent = (content: string, sources: any[] = []): string => {
-  let result = parsePDFCitations(content);
+  // Sanitize first to strip any <style>/<script>/<body> tags the AI may have generated
+  let result = sanitizeAIHtml(content);
+  result = parsePDFCitations(result);
   result = parseMarkdown(result, sources);
   return result;
 };
