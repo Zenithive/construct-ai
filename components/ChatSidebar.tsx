@@ -43,11 +43,17 @@ const ChatSidebar = forwardRef(({
   const [countryDropdownOpen, setCountryDropdownOpen] = useState(false);
   const [historyPopoverOpen, setHistoryPopoverOpen]   = useState(false);
   const [popoverPos, setPopoverPos]           = useState({ top: 0, left: 0 });
+  const [collapsedCountryPos, setCollapsedCountryPos] = useState({ top: 0, left: 0 });
+  const [collapsedProfilePos, setCollapsedProfilePos] = useState({ top: 0, left: 0 });
+  const collapsedCountryBtnRef = useRef<HTMLButtonElement>(null);
+  const collapsedProfileBtnRef = useRef<HTMLButtonElement>(null);
 
-  const countryDropdownRef = useRef<HTMLDivElement>(null);
-  const historyPopoverRef  = useRef<HTMLDivElement>(null);
-  const historyBtnRef      = useRef<HTMLButtonElement>(null);
-  const profilePopoverRef  = useRef<HTMLDivElement>(null);
+  const countryDropdownRef        = useRef<HTMLDivElement>(null);
+  const historyPopoverRef         = useRef<HTMLDivElement>(null);
+  const historyBtnRef             = useRef<HTMLButtonElement>(null);
+  const profilePopoverRef         = useRef<HTMLDivElement>(null);
+  const collapsedCountryPopoverRef = useRef<HTMLDivElement>(null);
+  const collapsedProfilePopoverRef = useRef<HTMLDivElement>(null);
   const router = useRouter();
 
   useImperativeHandle(ref, () => ({ refreshSessions: loadChatSessions, refreshUsage: () => onRefreshUsage?.() }));
@@ -74,6 +80,30 @@ const ChatSidebar = forwardRef(({
     if (profilePopoverOpen) document.addEventListener("mousedown", h);
     return () => document.removeEventListener("mousedown", h);
   }, [profilePopoverOpen]);
+
+  // Outside-click: collapsed country dropdown
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (
+        collapsedCountryPopoverRef.current && !collapsedCountryPopoverRef.current.contains(e.target as Node) &&
+        collapsedCountryBtnRef.current && !collapsedCountryBtnRef.current.contains(e.target as Node)
+      ) setCountryDropdownOpen(false);
+    };
+    if (countryDropdownOpen && !isOpen) document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [countryDropdownOpen, isOpen]);
+
+  // Outside-click: collapsed profile popover
+  useEffect(() => {
+    const h = (e: MouseEvent) => {
+      if (
+        collapsedProfilePopoverRef.current && !collapsedProfilePopoverRef.current.contains(e.target as Node) &&
+        collapsedProfileBtnRef.current && !collapsedProfileBtnRef.current.contains(e.target as Node)
+      ) setProfilePopoverOpen(false);
+    };
+    if (profilePopoverOpen && !isOpen) document.addEventListener("mousedown", h);
+    return () => document.removeEventListener("mousedown", h);
+  }, [profilePopoverOpen, isOpen]);
 
   const loadUserInfo = () => {
     const user = getUser();
@@ -139,11 +169,10 @@ const ChatSidebar = forwardRef(({
         flex flex-col flex-shrink-0 h-full bg-[#f7f7f5] border-r border-black/[0.09]
         transition-all duration-300 ease-in-out
         ${isOpen ? 'w-64 translate-x-0' : 'w-0 md:w-14 -translate-x-full md:translate-x-0'}
-        overflow-hidden
       `}>
 
         {/* Top controls */}
-        <div className={`flex items-center h-14 px-3 flex-shrink-0 ${isOpen ? "justify-between" : "justify-center"}`}>
+        <div className={`flex items-center h-14 px-3 flex-shrink-0 overflow-hidden ${isOpen ? "justify-between" : "justify-center"}`}>
           {isOpen && (
             <div className="flex items-center gap-2.5 overflow-hidden">
               <div className="w-8 h-8 bg-[#1D9E75] rounded-lg flex items-center justify-center flex-shrink-0">
@@ -158,7 +187,7 @@ const ChatSidebar = forwardRef(({
         </div>
 
         {/* New Chat */}
-        <div className={`px-2 pb-2 flex-shrink-0 ${!isOpen ? "flex justify-center" : ""}`}>
+        <div className={`px-2 pb-2 flex-shrink-0 overflow-hidden ${!isOpen ? "flex justify-center" : ""}`}>
           {isOpen ? (
             <button onClick={onNewChat} className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-[#555] hover:bg-black/[0.05] rounded-lg transition-colors font-medium">
               <Plus className="h-4 w-4 flex-shrink-0" /><span className="whitespace-nowrap">New chat</span>
@@ -194,7 +223,7 @@ const ChatSidebar = forwardRef(({
             )
           ) : (
             <div className="flex flex-col items-center pt-1">
-              <div ref={historyPopoverRef}>
+              <div className="relative">
                 <button ref={historyBtnRef} type="button"
                   onClick={() => {
                     if (!historyPopoverOpen && historyBtnRef.current) {
@@ -207,23 +236,6 @@ const ChatSidebar = forwardRef(({
                   className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${historyPopoverOpen ? "bg-black/[0.07] text-[#111]" : "text-[#999] hover:bg-black/[0.05] hover:text-[#555]"}`}>
                   <Clock className="h-4 w-4" />
                 </button>
-                <div style={{ top: popoverPos.top, left: popoverPos.left }}
-                  className={`fixed z-[999] w-60 origin-top-left transition-all duration-150 ease-in-out ${historyPopoverOpen ? "opacity-100 scale-100 pointer-events-auto" : "opacity-0 scale-95 pointer-events-none"}`}>
-                  <div className="overflow-hidden rounded-xl border border-black/[0.09] bg-white shadow-lg shadow-black/[0.06]">
-                    <div className="border-b border-black/[0.06] px-3 pb-2 pt-3"><p className="text-[10px] font-semibold uppercase tracking-widest text-[#999]">Recent chats</p></div>
-                    <div className="max-h-80 overflow-y-auto p-1.5">
-                      {isLoading ? <div className="flex justify-center py-5"><div className="h-4 w-4 animate-spin rounded-full border-2 border-black/[0.09] border-t-[#1D9E75]" /></div>
-                        : sessions.length === 0 ? <div className="px-3 py-6 text-center"><MessageSquare className="mx-auto mb-1.5 h-6 w-6 text-gray-200" /><p className="text-xs text-[#999]">No conversations yet</p></div>
-                        : <div className="space-y-0.5">{sessions.map(session => (
-                          <button key={session.id} type="button" onClick={() => { onSelectSession(session.id); setHistoryPopoverOpen(false); }}
-                            className={`group w-full flex flex-col text-left px-2.5 py-2 rounded-lg transition-colors ${currentSessionId === session.id ? "bg-[#E1F5EE]/80 ring-1 ring-inset ring-[#5DCAA5]/20" : "hover:bg-[#f7f7f5]"}`}>
-                            <span className={`block truncate text-[13px] font-medium leading-snug ${currentSessionId === session.id ? "text-[#0F6E56]" : "text-[#111]"}`}>{truncateTitle(session.title, 30)}</span>
-                            <span className="mt-0.5 text-[11px] text-[#999]">{formatDate(session.updated_at)}</span>
-                          </button>
-                        ))}</div>}
-                    </div>
-                  </div>
-                </div>
               </div>
             </div>
           )}
@@ -295,40 +307,60 @@ const ChatSidebar = forwardRef(({
             <>
               <SidebarPlanTag refreshKey={usageRefreshKey} compact />
               <div className="relative" ref={countryDropdownRef}>
-                <button onClick={() => setCountryDropdownOpen(prev => !prev)} title={selectedCountry ? `Region: ${COUNTRIES[selectedCountry].label}` : "Select region"}
+                <button
+                  ref={collapsedCountryBtnRef}
+                  onClick={() => {
+                    if (!countryDropdownOpen && collapsedCountryBtnRef.current) {
+                      const r = collapsedCountryBtnRef.current.getBoundingClientRect();
+                      const viewportHeight = window.innerHeight;
+                      const spaceBelow = viewportHeight - r.bottom;
+                      const popoverHeight = 280; // approximate height of region dropdown
+                      
+                      // Position to the right of button, but adjust vertical position if needed
+                      if (spaceBelow < popoverHeight && r.top > popoverHeight) {
+                        // Not enough space below, but enough above - align bottom of popover with bottom of button
+                        setCollapsedCountryPos({ top: r.bottom - popoverHeight, left: r.right + 8 });
+                      } else {
+                        // Enough space below or not enough above either - align top
+                        setCollapsedCountryPos({ top: r.top, left: r.right + 8 });
+                      }
+                    }
+                    setCountryDropdownOpen(prev => !prev);
+                  }}
+                  title={selectedCountry ? `Region: ${COUNTRIES[selectedCountry].label}` : "Select region"}
                   className={`w-8 h-8 flex items-center justify-center rounded-lg transition-colors ${countryDropdownOpen ? "bg-black/[0.07]" : "hover:bg-black/[0.04]"}`}>
                   {selectedCountry ? <span className={`inline-flex items-center justify-center w-7 h-5 rounded text-[9px] font-bold tracking-wide ${COUNTRIES[selectedCountry].color}`}>{COUNTRIES[selectedCountry].code}</span> : <Globe className="h-4 w-4 text-gray-400" />}
                 </button>
-                {countryDropdownOpen && <div className="absolute bottom-0 left-full ml-2 w-52 z-50"><RegionDropdown selected={selectedCountry} onSelect={handleSelectCountry} /></div>}
               </div>
               {/* Avatar — opens profile popover */}
-              <div ref={profilePopoverRef} className="relative">
-                <button type="button" onClick={() => setProfilePopoverOpen(v => !v)} title="Profile"
+              <div className="relative">
+                <button
+                  ref={collapsedProfileBtnRef}
+                  type="button"
+                  onClick={() => {
+                    if (!profilePopoverOpen && collapsedProfileBtnRef.current) {
+                      const r = collapsedProfileBtnRef.current.getBoundingClientRect();
+                      const viewportHeight = window.innerHeight;
+                      const spaceBelow = viewportHeight - r.bottom;
+                      const popoverHeight = 180; // approximate height of profile popover
+                      
+                      // Position to the right of button, but adjust vertical position if needed
+                      if (spaceBelow < popoverHeight && r.top > popoverHeight) {
+                        // Not enough space below, but enough above - align bottom of popover with bottom of button
+                        setCollapsedProfilePos({ top: r.bottom - popoverHeight, left: r.right + 8 });
+                      } else {
+                        // Enough space below or not enough above either - align top
+                        setCollapsedProfilePos({ top: r.top, left: r.right + 8 });
+                      }
+                    }
+                    setProfilePopoverOpen(v => !v);
+                  }}
+                  title="Profile"
                   className={`w-8 h-8 flex items-center justify-center rounded-full transition-colors ${profilePopoverOpen ? "ring-2 ring-[#1D9E75]/40" : ""}`}>
                   <div className="w-7 h-7 bg-[#1D9E75] rounded-full flex items-center justify-center"><span className="text-xs font-medium text-white">{userFirstName.charAt(0).toUpperCase()}</span></div>
                 </button>
-                {profilePopoverOpen && (
-                  <div className="absolute bottom-0 left-full ml-2 w-52 z-50">
-                    <div className="bg-white border border-black/[0.09] rounded-xl shadow-lg shadow-black/[0.06] overflow-hidden">
-                      <div className="px-3.5 py-3 border-b border-black/[0.06]">
-                        <p className="text-[13px] font-medium text-[#111] truncate">{userFirstName} {userLastName}</p>
-                        <p className="text-[11px] text-[#999] truncate">{userEmail}</p>
-                      </div>
-                      <div className="p-1.5 space-y-0.5">
-                        <button type="button" onClick={() => { setProfilePopoverOpen(false); setEditProfileOpen(true); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-[#333] hover:bg-[#f7f7f5] transition-colors text-left"><User className="w-4 h-4 text-[#999]" /><span>Edit Profile</span></button>
-                        {userRole === "admin" && (
-                          <button type="button" onClick={() => { setProfilePopoverOpen(false); router.push("/admin"); }} className="w-full flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg text-sm text-[#0F6E56] hover:bg-[#E1F5EE] transition-colors text-left">
-                            <div className="flex items-center gap-2.5"><ShieldCheck className="w-4 h-4 text-[#1D9E75]" /><span className="font-medium">Admin Portal</span></div>
-                            <ChevronRight className="w-3.5 h-3.5 text-[#5DCAA5]" />
-                          </button>
-                        )}
-                        <div className="h-px bg-black/[0.06] my-1" />
-                        <button type="button" onClick={() => { setProfilePopoverOpen(false); handleLogout(); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 transition-colors text-left"><LogOut className="w-4 h-4" /><span>Log out</span></button>
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
+
             </>
           )}
         </div>
@@ -336,6 +368,73 @@ const ChatSidebar = forwardRef(({
 
       <ConfirmModal isOpen={logoutModal} title="Logout" message="Are you sure you want to logout?" confirmText="Logout" cancelText="Cancel" variant="danger" onConfirm={confirmLogout} onCancel={() => setLogoutModal(false)} />
       <ConfirmModal isOpen={!!deleteModal} title="Delete chat" message="This conversation will be permanently deleted." confirmText="Delete" cancelText="Cancel" variant="danger" onConfirm={confirmDelete} onCancel={() => setDeleteModal(null)} />
+
+      {/* ── Fixed portals for collapsed sidebar popovers (escape overflow-hidden) ── */}
+      {/* Collapsed chat history popover */}
+      {!isOpen && historyPopoverOpen && (
+        <div
+          ref={historyPopoverRef}
+          style={{ top: popoverPos.top, left: popoverPos.left }}
+          className="fixed z-[999] w-60"
+        >
+          <div className="overflow-hidden rounded-xl border border-black/[0.09] bg-white shadow-lg shadow-black/[0.06]">
+            <div className="border-b border-black/[0.06] px-3 pb-2 pt-3"><p className="text-[10px] font-semibold uppercase tracking-widest text-[#999]">Recent chats</p></div>
+            <div className="max-h-80 overflow-y-auto p-1.5">
+              {isLoading ? <div className="flex justify-center py-5"><div className="h-4 w-4 animate-spin rounded-full border-2 border-black/[0.09] border-t-[#1D9E75]" /></div>
+                : sessions.length === 0 ? <div className="px-3 py-6 text-center"><MessageSquare className="mx-auto mb-1.5 h-6 w-6 text-gray-200" /><p className="text-xs text-[#999]">No conversations yet</p></div>
+                : <div className="space-y-0.5">{sessions.map(session => (
+                  <button key={session.id} type="button" onClick={() => { onSelectSession(session.id); setHistoryPopoverOpen(false); }}
+                    className={`group w-full flex flex-col text-left px-2.5 py-2 rounded-lg transition-colors ${currentSessionId === session.id ? "bg-[#E1F5EE]/80 ring-1 ring-inset ring-[#5DCAA5]/20" : "hover:bg-[#f7f7f5]"}`}>
+                    <span className={`block truncate text-[13px] font-medium leading-snug ${currentSessionId === session.id ? "text-[#0F6E56]" : "text-[#111]"}`}>{truncateTitle(session.title, 30)}</span>
+                    <span className="mt-0.5 text-[11px] text-[#999]">{formatDate(session.updated_at)}</span>
+                  </button>
+                ))}</div>}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Collapsed country dropdown */}
+      {!isOpen && countryDropdownOpen && (
+        <div
+          ref={collapsedCountryPopoverRef}
+          style={{ top: collapsedCountryPos.top, left: collapsedCountryPos.left }}
+          className="fixed z-[999] w-52"
+        >
+          <RegionDropdown selected={selectedCountry} onSelect={(key) => { handleSelectCountry(key); setCountryDropdownOpen(false); }} />
+        </div>
+      )}
+
+      {/* Collapsed profile popover */}
+      {!isOpen && profilePopoverOpen && (
+        <div
+          ref={collapsedProfilePopoverRef}
+          style={{ top: collapsedProfilePos.top, left: collapsedProfilePos.left }}
+          className="fixed z-[999] w-52"
+        >
+          <div className="bg-white border border-black/[0.09] rounded-xl shadow-lg shadow-black/[0.06] overflow-hidden">
+            <div className="px-3.5 py-3 border-b border-black/[0.06]">
+              <p className="text-[13px] font-medium text-[#111] truncate">{userFirstName} {userLastName}</p>
+              <p className="text-[11px] text-[#999] truncate">{userEmail}</p>
+            </div>
+            <div className="p-1.5 space-y-0.5">
+              <button type="button" onClick={() => { setProfilePopoverOpen(false); setEditProfileOpen(true); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-[#333] hover:bg-[#f7f7f5] transition-colors text-left">
+                <User className="w-4 h-4 text-[#999]" /><span>Edit Profile</span>
+              </button>
+              {userRole === "admin" && (
+                <button type="button" onClick={() => { setProfilePopoverOpen(false); router.push("/admin"); }} className="w-full flex items-center justify-between gap-2.5 px-3 py-2 rounded-lg text-sm text-[#0F6E56] hover:bg-[#E1F5EE] transition-colors text-left">
+                  <div className="flex items-center gap-2.5"><ShieldCheck className="w-4 h-4 text-[#1D9E75]" /><span className="font-medium">Admin Portal</span></div>
+                  <ChevronRight className="w-3.5 h-3.5 text-[#5DCAA5]" />
+                </button>
+              )}
+              <div className="h-px bg-black/[0.06] my-1" />
+              <button type="button" onClick={() => { setProfilePopoverOpen(false); handleLogout(); }} className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm text-red-500 hover:bg-red-50 transition-colors text-left">
+                <LogOut className="w-4 h-4" /><span>Log out</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {editProfileOpen && (
         <EditProfileModal firstName={userFirstName} lastName={userLastName} email={userEmail} onClose={() => setEditProfileOpen(false)} onSave={handleSaveProfile} />
