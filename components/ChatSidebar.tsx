@@ -167,7 +167,7 @@ const ChatSidebar = forwardRef(({
       <div className={`
         fixed md:relative inset-y-0 left-0 z-50 md:z-auto
         flex flex-col flex-shrink-0 h-full bg-[#f7f7f5] border-r border-black/[0.09]
-        transition-all duration-300 ease-in-out
+        transition-all duration-300 ease-in-out overflow-hidden
         ${isOpen ? 'w-64 translate-x-0' : 'w-0 md:w-14 -translate-x-full md:translate-x-0'}
       `}>
 
@@ -187,7 +187,7 @@ const ChatSidebar = forwardRef(({
         </div>
 
         {/* New Chat */}
-        <div className={`px-2 pb-2 flex-shrink-0 overflow-hidden ${!isOpen ? "flex justify-center" : ""}`}>
+        <div className={`px-2 pb-2 flex-shrink-0 overflow-hidden ${!isOpen ? "hidden md:flex justify-center" : ""}`}>
           {isOpen ? (
             <button onClick={onNewChat} className="w-full flex items-center space-x-2 px-3 py-2 text-sm text-[#555] hover:bg-black/[0.05] rounded-lg transition-colors font-medium">
               <Plus className="h-4 w-4 flex-shrink-0" /><span className="whitespace-nowrap">New chat</span>
@@ -222,7 +222,7 @@ const ChatSidebar = forwardRef(({
               </div>
             )
           ) : (
-            <div className="flex flex-col items-center pt-1">
+            <div className="hidden md:flex flex-col items-center pt-1">
               <div className="relative">
                 <button ref={historyBtnRef} type="button"
                   onClick={() => {
@@ -242,7 +242,7 @@ const ChatSidebar = forwardRef(({
         </div>
 
         {/* ── User footer ── */}
-        <div className={`flex-shrink-0 border-t border-black/[0.09] p-2 ${!isOpen ? "flex flex-col items-center gap-1" : ""}`}>
+        <div className={`flex-shrink-0 border-t border-black/[0.09] p-2 ${!isOpen ? "hidden md:flex flex-col items-center gap-1" : ""}`}>
           {isOpen ? (
             <div ref={profilePopoverRef} className="relative">
               {/* Row: profile button + country chip */}
