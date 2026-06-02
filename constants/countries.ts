@@ -18,12 +18,6 @@ export const COUNTRIES = {
     color: "bg-amber-50 text-amber-600",
     dot: "bg-amber-400",
   },
-  INDIA: {
-    code: "IND",
-    label: "India",
-    color: "bg-orange-50 text-orange-600",
-    dot: "bg-orange-400",
-  },
 } as const;
 
 export type CountryKey = keyof typeof COUNTRIES;
