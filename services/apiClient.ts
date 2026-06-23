@@ -69,6 +69,41 @@ export class LimitExceededError extends ApiError {
   }
 }
 
+// Status codes that indicate the server is sleeping/starting (Railway cold start)
+const RETRYABLE_STATUSES = new Set([500, 502, 503, 504]);
+
+export async function requestWithRetry<T = unknown>(
+  path: string,
+  options: RequestInit = {},
+  {
+    maxRetries = 12,
+    retryDelayMs = 3000,
+    onRetry,
+  }: {
+    maxRetries?: number;
+    retryDelayMs?: number;
+    onRetry?: (attempt: number) => void;
+  } = {}
+): Promise<T> {
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      return await request<T>(path, options);
+    } catch (err) {
+      if (
+        err instanceof ApiError &&
+        RETRYABLE_STATUSES.has(err.status) &&
+        attempt < maxRetries
+      ) {
+        onRetry?.(attempt + 1);
+        await new Promise((resolve) => setTimeout(resolve, retryDelayMs));
+        continue;
+      }
+      throw err;
+    }
+  }
+  throw new ApiError('Server is unavailable. Please try again later.', 503);
+}
+
 async function request<T = unknown>(path: string, options: RequestInit = {}): Promise<T> {
   const token = getToken();
   const headers: Record<string, string> = {
@@ -94,8 +129,12 @@ async function request<T = unknown>(path: string, options: RequestInit = {}): Pr
 export const authApi = {
   register: (email: string, password: string, firstName: string, lastName: string) =>
     request('/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password, firstName, lastName }) }),
-  login: (email: string, password: string) =>
-    request('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
+  login: (email: string, password: string, onRetry?: (attempt: number) => void) =>
+    requestWithRetry(
+      '/api/auth/login',
+      { method: 'POST', body: JSON.stringify({ email, password }) },
+      { onRetry }
+    ),
   logout: () => request('/api/auth/logout', { method: 'POST' }),
   me: () => request('/api/auth/me'),
 };
