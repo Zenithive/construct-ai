@@ -138,9 +138,9 @@ export const authApi = {
 // ── Chat API ──────────────────────────────────────────────────────────────────
 
 export const chatApi = {
-  getSessions: () => request('/api/chat/sessions'),
+  getSessions: () => requestWithRetry('/api/chat/sessions'),
   createSession: (title?: string) =>
-    request('/api/chat/sessions', { method: 'POST', body: JSON.stringify({ title: title || 'New Chat' }) }),
+    requestWithRetry('/api/chat/sessions', { method: 'POST', body: JSON.stringify({ title: title || 'New Chat' }) }),
   deleteSession: (sessionId: string) =>
     request(`/api/chat/sessions/${sessionId}`, { method: 'DELETE' }),
   getMessages: (sessionId: string) =>
