@@ -129,12 +129,8 @@ async function request<T = unknown>(path: string, options: RequestInit = {}): Pr
 export const authApi = {
   register: (email: string, password: string, firstName: string, lastName: string) =>
     request('/api/auth/register', { method: 'POST', body: JSON.stringify({ email, password, firstName, lastName }) }),
-  login: (email: string, password: string, onRetry?: (attempt: number) => void) =>
-    requestWithRetry(
-      '/api/auth/login',
-      { method: 'POST', body: JSON.stringify({ email, password }) },
-      { onRetry }
-    ),
+  login: (email: string, password: string) =>
+    requestWithRetry('/api/auth/login', { method: 'POST', body: JSON.stringify({ email, password }) }),
   logout: () => request('/api/auth/logout', { method: 'POST' }),
   me: () => request('/api/auth/me'),
 };
